@@ -1,0 +1,10 @@
+airline,total_flights,delayed_flights,overnight_count,delay_rate_%
+AIR INDIA,233,63,30,27.04
+Air India,8,2,2,25.0
+INDIGO,249,89,30,35.74
+IndiGo,11,4,0,36.36
+NAN,39,13,4,33.33
+SPICEJET,235,69,27,29.36
+SpiceJet,6,1,1,16.67
+VISTARA,218,71,27,32.57
+Vistara,4,2,1,50.0
