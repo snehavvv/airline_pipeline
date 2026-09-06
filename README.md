@@ -4,6 +4,10 @@ An enterprise-grade, fail-safe local data engineering pipeline and interactive P
 
 ---
 
+> 📖 **Solution Architecture & Workflow Walkthrough:** Read the complete standalone narrative walkthrough in [`Solution_Walkthrough.md`](Solution_Walkthrough.md).
+
+---
+
 ## 📊 Power BI Dashboard Preview & Interactive Report
 
 The repository includes a ready-to-use **Power BI Report File (`.pbix`)** with 4 interactive dashboard pages, real-time KPI metrics, DAX measures, dark/glassmorphic executive aesthetics, and interactive visual filtering.
