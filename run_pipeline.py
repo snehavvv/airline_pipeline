@@ -1,14 +1,7 @@
-"""
-ASG Airlines — Enterprise Data Pipeline Runner
-Run this script directly to produce all cleaned CSVs, 4-way unified master dataset,
-12 KPI aggregations (including 7 creative bonus KPIs), and visual charts.
-
-Features:
-- Enterprise error handling (try/except blocks, schema validation, fail-safes)
-- Dynamic raw file discovery & automatic fallback to sample dataset
-- Comprehensive logging and data quality error reporting
-- Zero PII exposure governance
-"""
+# Pipeline script for the ASG Airlines data engineering project.
+# Reads the source Excel workbook, cleans each sheet, masks PII,
+# builds a unified master dataset, computes KPI aggregations, and
+# generates a few charts. Run directly: python run_pipeline.py
 
 import hashlib
 import logging
@@ -19,7 +12,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-# ── Logging Configuration ──────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(levelname)-7s | %(message)s',
@@ -27,12 +19,12 @@ logging.basicConfig(
 )
 log = logging.getLogger('ASG-Pipeline')
 
-# ── Custom Exceptions ──────────────────────────────────────────────────────────
+
 class PipelineDataError(Exception):
-    """Custom exception for pipeline schema validation or data quality failures."""
+    """Raised when a required sheet or column is missing from the workbook."""
     pass
 
-# ── Paths & File Discovery ─────────────────────────────────────────────────────
+
 BASE_DIR    = Path(__file__).resolve().parent
 RAW_DIR     = BASE_DIR / 'data' / 'raw'
 CLEANED_DIR = BASE_DIR / 'data' / 'cleaned'
@@ -42,8 +34,9 @@ CLEANED_DIR.mkdir(parents=True, exist_ok=True)
 AGG_DIR.mkdir(parents=True, exist_ok=True)
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 
+
 def resolve_raw_file() -> Path:
-    """Discovers raw dataset or falls back to sample dataset gracefully."""
+    """Look for the source workbook in a few likely locations."""
     candidates = [
         RAW_DIR / 'UseCase - Airlines.xlsx',
         BASE_DIR.parent / 'UseCase - Airlines.xlsx',
@@ -52,52 +45,49 @@ def resolve_raw_file() -> Path:
     ]
     for candidate in candidates:
         if candidate.exists():
-            log.info("Found input dataset at: %s", candidate)
+            log.info("Found input file at: %s", candidate)
             return candidate
-            
-    log.error("CRITICAL: Raw source file 'UseCase - Airlines.xlsx' not found!")
-    log.error("Please place 'UseCase - Airlines.xlsx' in '%s' or run the sample generator script.", RAW_DIR)
-    raise FileNotFoundError(f"Raw source dataset missing. Expected at {RAW_DIR / 'UseCase - Airlines.xlsx'}")
 
-# ── Main Pipeline Execution ───────────────────────────────────────────────────
+    log.error("Could not find 'UseCase - Airlines.xlsx'. Place it in '%s' or use the sample file.", RAW_DIR)
+    raise FileNotFoundError(f"Source file missing. Expected at {RAW_DIR / 'UseCase - Airlines.xlsx'}")
+
+
 def run():
-    log.info("==========================================================")
-    log.info("  ASG AIRLINES — DATA ENGINEERING & ANALYTICS PIPELINE   ")
-    log.info("==========================================================")
+    log.info("Starting ASG Airlines pipeline...")
 
-    # ── 1. Ingestion & Validation ──────────────────────────────────────────────
+    # 1. Load workbook
     try:
         raw_path = resolve_raw_file()
         excel_file = pd.ExcelFile(raw_path)
         required_sheets = ['flights', 'bookings', 'passengers', 'payments']
-        
+
         missing_sheets = [s for s in required_sheets if s not in excel_file.sheet_names]
         if missing_sheets:
-            raise PipelineDataError(f"Workbook missing required sheet(s): {missing_sheets}")
+            raise PipelineDataError(f"Workbook is missing sheet(s): {missing_sheets}")
 
         raw = {}
         for sheet in required_sheets:
             df = pd.read_excel(excel_file, sheet_name=sheet)
             df = df[[c for c in df.columns if not str(c).startswith('Unnamed')]]
             if df.empty:
-                log.warning("Sheet [%s] is empty!", sheet)
+                log.warning("Sheet [%s] loaded but is empty.", sheet)
             raw[sheet] = df
-            log.info("Loaded sheet [%s]: %d rows, %d columns", sheet, len(df), len(df.columns))
+            log.info("Loaded [%s]: %d rows, %d cols", sheet, len(df), len(df.columns))
 
     except Exception as e:
-        log.error("FAILED to ingest raw Excel file: %s", e, exc_info=True)
+        log.error("Failed to load workbook: %s", e, exc_info=True)
         sys.exit(1)
 
-    # ── 2. Clean Flights Table ─────────────────────────────────────────────────
+    # 2. Clean flights
     try:
-        log.info("Cleaning [flights] table...")
+        log.info("Cleaning flights table...")
         flights = raw['flights'].copy()
-        
-        # Schema verification
+
+        # check expected columns are present
         req_flights_cols = {'flight_id', 'airline', 'source', 'destination', 'departure_time', 'arrival_time'}
         if not req_flights_cols.issubset(set(flights.columns)):
             missing = req_flights_cols - set(flights.columns)
-            log.warning("Flights table missing expected columns: %s. Attempting positional fix.", missing)
+            log.warning("Flights table missing columns: %s — trying positional rename.", missing)
 
         drop_cols = [c for c in flights.columns if str(c).startswith('Unnamed') or c == 'duration']
         flights.drop(columns=drop_cols, errors='ignore', inplace=True)
@@ -111,7 +101,7 @@ def run():
 
         before = len(flights)
         flights.dropna(subset=['flight_id', 'source', 'destination', 'departure_time', 'arrival_time'], inplace=True)
-        log.info("Dropped %d rows with null critical fields", before - len(flights))
+        log.info("Dropped %d rows with null key fields", before - len(flights))
 
         before = len(flights)
         flights.drop_duplicates(inplace=True)
@@ -119,10 +109,11 @@ def run():
 
         before = len(flights)
         flights.drop_duplicates(subset=['flight_id'], keep='first', inplace=True)
-        log.info("Dropped %d duplicate flight_id rows", before - len(flights))
+        log.info("Dropped %d duplicate flight_ids", before - len(flights))
 
         flights = flights[flights['arrival_time'] > flights['departure_time']]
 
+        # fill in airline name from the flight_id prefix where it's blank/unknown
         AIRLINE_MAP = {'AI': 'Air India', 'SJ': 'SpiceJet', '6F': 'IndiGo', 'UK': 'Vistara', 'G8': 'Go First'}
         def impute_airline(row):
             if row['airline'] == 'UNKNOWN':
@@ -134,7 +125,7 @@ def run():
         before = len(flights)
         flights = flights[~flights['airline'].isin(['NAN', '', 'NONE'])]
         flights.dropna(subset=['airline'], inplace=True)
-        log.info("Dropped %d rows with unresolvable airline", before - len(flights))
+        log.info("Dropped %d rows where airline could not be resolved", before - len(flights))
 
         flights['duration_mins'] = (
             (flights['arrival_time'] - flights['departure_time']).dt.total_seconds() / 60
@@ -146,6 +137,7 @@ def run():
         flights['duration_hhmm'] = flights['duration_mins'].apply(lambda m: f"{int(m)//60}h {int(m)%60}m")
         flights['route']         = flights['source'] + ' to ' + flights['destination']
 
+        # flag flights significantly longer than the average for their route
         route_avg = flights.groupby('route')['duration_mins'].transform('mean')
         flights['is_delayed'] = (flights['duration_mins'] > route_avg * 1.30).astype(int)
 
@@ -159,15 +151,15 @@ def run():
             return 'Night (21-05)'
 
         flights['departure_slot'] = flights['departure_time'].apply(get_time_slot)
-        log.info("Successfully cleaned [flights]: %d valid rows remaining.", len(flights))
+        log.info("Flights cleaned: %d rows remaining.", len(flights))
 
     except Exception as e:
-        log.error("CRITICAL ERROR during [flights] cleaning: %s", e, exc_info=True)
+        log.error("Error cleaning flights: %s", e, exc_info=True)
         sys.exit(1)
 
-    # ── 3. Clean Bookings Table & PII Masking ──────────────────────────────────
+    # 3. Clean bookings + mask PII
     try:
-        log.info("Cleaning [bookings] table & applying PII masking...")
+        log.info("Cleaning bookings table...")
         bookings = raw['bookings'].copy()
         bookings.drop(columns=[c for c in bookings.columns if str(c).startswith('Unnamed')], errors='ignore', inplace=True)
         bookings.columns = ['booking_id', 'passenger_id', 'flight_id', 'booking_date',
@@ -194,15 +186,15 @@ def run():
         bookings_masked['passport_number']         = bookings_masked['passport_number'].apply(sha256_hash)
         bookings_masked['emergency_contact_phone'] = bookings_masked['emergency_contact_phone'].apply(sha256_hash)
         bookings_masked['emergency_contact_name']  = bookings_masked['emergency_contact_name'].apply(mask_name)
-        log.info("Successfully cleaned & PII-masked [bookings]: %d rows.", len(bookings_masked))
+        log.info("Bookings cleaned: %d rows.", len(bookings_masked))
 
     except Exception as e:
-        log.error("CRITICAL ERROR during [bookings] cleaning: %s", e, exc_info=True)
+        log.error("Error cleaning bookings: %s", e, exc_info=True)
         sys.exit(1)
 
-    # ── 4. Clean Passengers Table & PII Masking ────────────────────────────────
+    # 4. Clean passengers + mask PII
     try:
-        log.info("Cleaning [passengers] table & applying demographic logic...")
+        log.info("Cleaning passengers table...")
         passengers = raw['passengers'].copy()
         passengers.drop(columns=[c for c in passengers.columns if str(c).startswith('Unnamed')], errors='ignore', inplace=True)
         passengers.columns = ['passenger_id', 'first_name', 'last_name', 'age',
@@ -234,15 +226,15 @@ def run():
         passengers_masked['aadhaar_id']  = passengers_masked['aadhaar_id'].apply(sha256_hash)
         passengers_masked.drop(columns=['date_of_birth'], errors='ignore', inplace=True)
         passengers_masked.drop_duplicates(subset=['passenger_id'], keep='first', inplace=True)
-        log.info("Successfully cleaned & PII-masked [passengers]: %d rows.", len(passengers_masked))
+        log.info("Passengers cleaned: %d rows.", len(passengers_masked))
 
     except Exception as e:
-        log.error("CRITICAL ERROR during [passengers] cleaning: %s", e, exc_info=True)
+        log.error("Error cleaning passengers: %s", e, exc_info=True)
         sys.exit(1)
 
-    # ── 5. Clean Payments Table ────────────────────────────────────────────────
+    # 5. Clean payments
     try:
-        log.info("Cleaning [payments] table...")
+        log.info("Cleaning payments table...")
         payments = raw['payments'].copy()
         payments.drop(columns=[c for c in payments.columns if str(c).startswith('Unnamed')], errors='ignore', inplace=True)
         payments.columns = ['payment_id', 'booking_id', 'amount', 'payment_method']
@@ -253,15 +245,15 @@ def run():
         payments['amount'] = pd.to_numeric(payments['amount'], errors='coerce')
         payments.dropna(subset=['amount'], inplace=True)
         payments.drop_duplicates(subset=['payment_id'], keep='first', inplace=True)
-        log.info("Successfully cleaned [payments]: %d rows.", len(payments))
+        log.info("Payments cleaned: %d rows.", len(payments))
 
     except Exception as e:
-        log.error("CRITICAL ERROR during [payments] cleaning: %s", e, exc_info=True)
+        log.error("Error cleaning payments: %s", e, exc_info=True)
         sys.exit(1)
 
-    # ── 6. Construct 4-Way Unified Master Fact Dataset ──────────────────────────
+    # 6. Join all four tables into master dataset
     try:
-        log.info("Building 4-way unified master dataset (Bookings ⋈ Flights ⋈ Payments ⋈ Passengers)...")
+        log.info("Building master dataset (bookings + flights + payments + passengers)...")
         pax_cols = [c for c in ['passenger_id', 'age', 'age_group', 'gender', 'first_name', 'last_name'] if c in passengers_masked.columns]
         master = (
             bookings_masked
@@ -274,17 +266,17 @@ def run():
         bookings_masked.to_csv(CLEANED_DIR / 'cleaned_bookings_masked.csv', index=False)
         passengers_masked.to_csv(CLEANED_DIR / 'cleaned_passengers_masked.csv', index=False)
         payments.to_csv(CLEANED_DIR / 'cleaned_payments.csv', index=False)
-        log.info("Saved 5 cleaned datasets to '%s' (master_dataset has %d rows).", CLEANED_DIR, len(master))
+        log.info("Saved cleaned datasets to '%s' (master has %d rows).", CLEANED_DIR, len(master))
 
     except Exception as e:
-        log.error("CRITICAL ERROR during master dataset construction: %s", e, exc_info=True)
+        log.error("Error building master dataset: %s", e, exc_info=True)
         sys.exit(1)
 
-    # ── 7. Generate 12 Aggregated KPI Datasets (Including 7 Creative Bonus KPIs) ──
+    # 7. KPI aggregations
     try:
-        log.info("Computing 12 KPI Aggregations (Core + Creative Bonus KPIs)...")
-        
-        # 1. Route Traffic (Core)
+        log.info("Computing KPI aggregations...")
+
+        # Route traffic
         kpi_route = (
             flights.groupby('route')
             .agg(flight_count=('flight_id', 'count'),
@@ -295,7 +287,7 @@ def run():
         )
         kpi_route.to_csv(AGG_DIR / 'kpi_route_traffic.csv', index=False)
 
-        # 2. Avg Duration by Airline (Core)
+        # Average duration by airline
         kpi_airline_dur = (
             flights.groupby('airline')
             .agg(avg_duration_mins=('duration_mins', 'mean'),
@@ -305,18 +297,18 @@ def run():
         )
         kpi_airline_dur.to_csv(AGG_DIR / 'kpi_avg_duration_by_airline.csv', index=False)
 
-        # 3. Avg Duration by Route (Core)
+        # Average duration by route
         kpi_route_dur = flights.groupby('route')['duration_mins'].mean().reset_index()
         kpi_route_dur.columns = ['route', 'avg_duration_mins']
         kpi_route_dur.to_csv(AGG_DIR / 'kpi_avg_duration_by_route.csv', index=False)
 
-        # 4. Airline Distribution (Core)
+        # Airline distribution
         kpi_airline_dist = flights['airline'].value_counts().reset_index()
         kpi_airline_dist.columns = ['airline', 'flight_count']
         kpi_airline_dist['market_share_pct'] = (kpi_airline_dist['flight_count'] / len(flights) * 100).round(2)
         kpi_airline_dist.to_csv(AGG_DIR / 'kpi_airline_distribution.csv', index=False)
 
-        # 5. Delay Summary by Airline (Core)
+        # Delay summary
         kpi_delay = (
             flights.groupby('airline')
             .agg(total_flights=('flight_id', 'count'),
@@ -327,7 +319,7 @@ def run():
         kpi_delay['delay_rate_pct'] = (kpi_delay['delayed_flights'] / kpi_delay['total_flights'] * 100).round(2)
         kpi_delay.to_csv(AGG_DIR / 'kpi_delay_summary.csv', index=False)
 
-        # 🌟 6. Revenue by Airline (Creative Bonus KPI)
+        # Revenue by airline
         booking_pay = bookings.merge(payments, on='booking_id', how='inner')
         flight_rev = booking_pay.merge(flights[['flight_id', 'airline']], on='flight_id', how='left')
         kpi_rev = (
@@ -340,7 +332,7 @@ def run():
         )
         kpi_rev.to_csv(AGG_DIR / 'kpi_revenue_by_airline.csv', index=False)
 
-        # 🌟 7. Departure Slots (Creative Bonus KPI)
+        # Departure time slots
         kpi_slots = (
             flights.groupby('departure_slot')
             .agg(flight_count=('flight_id', 'count'),
@@ -350,13 +342,13 @@ def run():
         kpi_slots['delay_rate_pct'] = (kpi_slots['delayed_flights'] / kpi_slots['flight_count'] * 100).round(2)
         kpi_slots.to_csv(AGG_DIR / 'kpi_departure_slots.csv', index=False)
 
-        # 🌟 8. Booking Status Distribution (Creative Bonus KPI)
+        # Booking status distribution
         kpi_status = bookings['status'].value_counts().reset_index()
         kpi_status.columns = ['status', 'booking_count']
         kpi_status['percentage'] = (kpi_status['booking_count'] / len(bookings) * 100).round(2)
         kpi_status.to_csv(AGG_DIR / 'kpi_booking_status.csv', index=False)
 
-        # 🌟 9. Payment Methods Split (Creative Bonus KPI)
+        # Payment methods
         kpi_pm = (
             payments.groupby('payment_method')
             .agg(transaction_count=('payment_id', 'count'),
@@ -366,7 +358,7 @@ def run():
         )
         kpi_pm.to_csv(AGG_DIR / 'kpi_payment_methods.csv', index=False)
 
-        # 🌟 10. Passenger Demographics Summary (Creative Bonus KPI)
+        # Passenger demographics
         pax_revenue = (
             passengers_masked
             .merge(bookings_masked[['passenger_id', 'booking_id']], on='passenger_id', how='left')
@@ -381,7 +373,7 @@ def run():
         )
         kpi_pax_demo.to_csv(AGG_DIR / 'kpi_passenger_demographics.csv', index=False)
 
-        # 🌟 11. Customer Loyalty & Frequent Flyers (Creative Bonus KPI)
+        # Frequent flyers / loyalty
         kpi_frequent = (
             pax_revenue.groupby(['passenger_id', 'first_name', 'last_name', 'age_group'])
             .agg(total_bookings=('booking_id', 'count'),
@@ -392,7 +384,7 @@ def run():
         )
         kpi_frequent.to_csv(AGG_DIR / 'kpi_frequent_flyers.csv', index=False)
 
-        # 🌟 12. Airline Passenger Demographics (Creative Bonus KPI)
+        # Airline x passenger demographics breakdown
         airline_pax = (
             master.groupby(['airline', 'gender', 'age_group'])
             .agg(passenger_count=('passenger_id', 'nunique'),
@@ -401,22 +393,21 @@ def run():
         )
         airline_pax.to_csv(AGG_DIR / 'kpi_airline_passenger_demographics.csv', index=False)
 
-        log.info("Saved all 12 KPI datasets (including 7 Creative Bonus KPIs) to '%s'.", AGG_DIR)
+        log.info("KPI aggregations saved to '%s'.", AGG_DIR)
 
     except Exception as e:
-        log.error("CRITICAL ERROR during KPI calculation: %s", e, exc_info=True)
+        log.error("Error during KPI calculation: %s", e, exc_info=True)
         sys.exit(1)
 
-    # ── 8. Render Visualizations ───────────────────────────────────────────────
+    # 8. Charts
     try:
-        log.info("Rendering matplotlib / seaborn analytical charts...")
+        log.info("Generating charts...")
         sns.set_theme(style="whitegrid", palette="muted")
         palette = sns.color_palette("Set2")
 
-        # Visual 1: Flight Count by Airline
         fig, ax = plt.subplots(figsize=(8, 4.5))
         sns.barplot(data=kpi_airline_dist, x='airline', y='flight_count', palette=palette, ax=ax)
-        ax.set_title('ASG Airlines — Total Flight Count by Airline', fontsize=12, fontweight='bold')
+        ax.set_title('ASG Airlines — Flight Count by Airline', fontsize=12, fontweight='bold')
         ax.set_xlabel('Airline')
         ax.set_ylabel('Flight Count')
         for p in ax.patches:
@@ -426,27 +417,25 @@ def run():
         plt.savefig(CLEANED_DIR / 'viz_flight_count_by_airline.png', dpi=150)
         plt.close()
 
-        # Visual 2: Passenger Demographics
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
         gender_counts = passengers_masked['gender'].value_counts()
         axes[0].pie(gender_counts, labels=gender_counts.index, autopct='%1.1f%%', colors=['#38bdf8', '#ec4899'], startangle=140)
         axes[0].set_title('Passenger Gender Split', fontweight='bold')
-        
+
         age_counts = passengers_masked['age_group'].value_counts().reindex(['Under 18', '18-30', '31-45', '46-60', '60+'])
         sns.barplot(x=age_counts.index, y=age_counts.values, ax=axes[1], palette='crest')
-        axes[1].set_title('Passenger Age Group Distribution', fontweight='bold')
+        axes[1].set_title('Passenger Age Groups', fontweight='bold')
         plt.tight_layout()
         plt.savefig(CLEANED_DIR / 'viz_passenger_demographics.png', dpi=150)
         plt.close()
 
-        log.info("Successfully generated analytical charts in '%s'.", CLEANED_DIR)
+        log.info("Charts saved to '%s'.", CLEANED_DIR)
 
     except Exception as e:
-        log.warning("Non-fatal error generating visual charts: %s", e)
+        log.warning("Could not generate charts (non-fatal): %s", e)
 
-    log.info("==========================================================")
-    log.info("  SUCCESS: Pipeline execution complete!                   ")
-    log.info("==========================================================")
+    log.info("Pipeline complete.")
+
 
 if __name__ == '__main__':
     run()

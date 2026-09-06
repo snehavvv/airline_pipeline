@@ -1,7 +1,5 @@
-"""
-ASG Airlines — Architectural & Data Model Diagram Generator
-Generates publication-quality visual PNG diagrams for repository documentation.
-"""
+# Generates the architecture and data model diagrams used in the docs folder.
+# Run directly: python docs/generate_diagrams.py
 
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -87,7 +85,7 @@ def create_architecture_diagram(output_path: Path):
     rect_bot = patches.FancyBboxPatch((0.01, 0.03), 0.98, 0.09, boxstyle="round,pad=0.01", 
                                      facecolor="#1e293b", edgecolor="#475569", linewidth=1.5)
     ax.add_patch(rect_bot)
-    ax.text(0.5, 0.075, "Automated Fail-safe Pipeline (Logging & Error Handling)  |  100% Core Table Utilization  |  Zero PII Exposure Guarantee", 
+    ax.text(0.5, 0.075, "All four source tables used  |  Error handling & logging at each stage  |  PII masked before output", 
             color="#38bdf8", fontsize=10, fontweight='bold', ha='center', va='center')
 
     plt.tight_layout()

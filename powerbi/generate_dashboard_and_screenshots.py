@@ -1,12 +1,5 @@
-"""
-ASG Airlines — Power BI Report & Analytical Preview Generator
-=============================================================
-1. Builds the official Power BI Desktop (.pbix) report file with 4 rich pages,
-   full data tables, DAX measures, and visual bindings using `pbix-mcp`.
-2. Renders clean, high-resolution analytical report preview charts for all 4 pages
-   into `powerbi/previews/` (without mock UI chrome).
-3. Synchronizes artifacts across repository directories dynamically.
-"""
+# Generates the Power BI .pbix file and analytical preview PNGs for all 4 report pages.
+# Run directly: python powerbi/generate_dashboard_and_screenshots.py
 
 import os
 import shutil
@@ -16,7 +9,7 @@ import matplotlib.patches as patches
 import pandas as pd
 import numpy as np
 
-# ── Dynamic Paths ─────────────────────────────────────────────────────────────
+# Paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 CLEANED_DIR = BASE_DIR / 'data' / 'cleaned'
 POWERBI_DIR = BASE_DIR / 'powerbi'
@@ -25,7 +18,7 @@ PREVIEWS_DIR = POWERBI_DIR / 'previews'
 POWERBI_DIR.mkdir(parents=True, exist_ok=True)
 PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
 
-# ── 1. Load and Standardize Master Dataset ─────────────────────────────────────
+# Load and normalise master dataset
 print("Loading master dataset...")
 df = pd.read_csv(CLEANED_DIR / 'master_dataset.csv')
 

@@ -1,7 +1,5 @@
-"""
-ASG Airlines — Documentation Word (.docx) Generator
-Generates publication-quality .docx document deliverable for ASG Airlines.
-"""
+# Generates the Word (.docx) documentation file for the ASG Airlines project.
+# Run directly: python docs/create_docx_documentation.py
 
 from pathlib import Path
 import docx
@@ -62,15 +60,15 @@ def build_docx_documentation(output_file: Path, img_dir: Path):
         set_cell_background(hdr_cells[i], "1E3A8A")
 
     deliverables = [
-        ("Power BI Report File", "powerbi/ASG_Airlines_Dashboard.pbix", ".pbix (373 KB)", "✅ Built & Included"),
-        ("Analytical Report Previews", "powerbi/previews/", ".png (4 page renders)", "✅ Built & Included"),
-        ("Architecture & Data Flow Diagram", "docs/architecture_data_flow_diagram.png", ".png Visual Diagram", "✅ Built & Included"),
-        ("Relational ERD Data Model", "docs/relational_data_model_diagram.png", ".png Visual ERD", "✅ Built & Included"),
-        ("Solution Architecture Walkthrough", "Solution_Walkthrough.md", "Narrative Walkthrough", "✅ Built & Included"),
-        ("Enterprise ETL Pipeline Script", "run_pipeline.py", "Python 3.10 Script", "✅ Fail-safe Try/Except"),
-        ("Sample Raw Dataset", "data/raw/sample_usecase_airlines.xlsx", "Excel Workbook", "✅ Out-of-the-box Ready"),
-        ("Cleaned & Masked Datasets", "data/cleaned/*.csv", "5 CSV Files (Unified Master)", "✅ 100% Table Joined"),
-        ("KPI Aggregations Engine", "data/aggregated/*.csv", "12 CSV Tables (7 Bonus KPIs)", "✅ 12 Aggregations")
+        ("Power BI Report File", "powerbi/ASG_Airlines_Dashboard.pbix", ".pbix (373 KB)", "Complete"),
+        ("Analytical Report Previews", "powerbi/previews/", ".png (4 page renders)", "Complete"),
+        ("Architecture & Data Flow Diagram", "docs/architecture_data_flow_diagram.png", ".png Visual Diagram", "Complete"),
+        ("Relational ERD Data Model", "docs/relational_data_model_diagram.png", ".png Visual ERD", "Complete"),
+        ("Solution Architecture Walkthrough", "Solution_Walkthrough.md", "Narrative Walkthrough", "Complete"),
+        ("ETL Pipeline Script", "run_pipeline.py", "Python 3.10 Script", "Complete"),
+        ("Sample Raw Dataset", "data/raw/sample_usecase_airlines.xlsx", "Excel Workbook", "Complete"),
+        ("Cleaned & Masked Datasets", "data/cleaned/*.csv", "5 CSV Files (Unified Master)", "Complete"),
+        ("KPI Aggregations", "data/aggregated/*.csv", "12 CSV Tables", "Complete")
     ]
 
     for item, loc, fmt, stat in deliverables:

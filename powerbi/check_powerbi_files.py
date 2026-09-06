@@ -1,9 +1,6 @@
-"""
-ASG Airlines — Power BI Setup Helper
-====================================
-Run this script to verify that all required CSV files, .pbix report file,
-and analytical preview images are in place.
-"""
+# Checks that all expected output files from run_pipeline.py and
+# generate_dashboard_and_screenshots.py are present.
+# Run directly: python powerbi/check_powerbi_files.py
 
 from pathlib import Path
 
@@ -51,7 +48,7 @@ REQUIRED_PREVIEWS = [
 
 def check():
     print("=" * 60)
-    print("  ASG Airlines — Power BI Artifacts Readiness Verification")
+    print("  ASG Airlines - Power BI Artifacts Check")
     print("=" * 60)
     
     all_ok = True
@@ -88,7 +85,7 @@ def check():
 
     print("\n" + "=" * 60)
     if all_ok:
-        print("[SUCCESS] ALL ARTIFACTS VERIFIED AND READY FOR REPORTING!")
+        print("[OK] All artifacts present.")
     else:
         print("[ERROR] Some artifacts are missing. Run run_pipeline.py and generate_dashboard_and_screenshots.py.")
     print("=" * 60)
