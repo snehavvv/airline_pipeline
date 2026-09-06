@@ -1,14 +1,13 @@
 """
-ASG Airlines — Power BI Report & Visual Screenshot Generator (Clean & Transparent)
-===================================================================================
+ASG Airlines — Power BI Report & Analytical Preview Generator
+=============================================================
 1. Builds the official Power BI Desktop (.pbix) report file with 4 rich pages,
    full data tables, DAX measures, and visual bindings using `pbix-mcp`.
 2. Renders clean, high-resolution analytical report preview charts for all 4 pages
-   plus an executive hero preview.
-3. Synchronizes artifacts across repository directories.
+   into `powerbi/previews/` (without mock UI chrome).
+3. Synchronizes artifacts across repository directories dynamically.
 """
 
-import json
 import os
 import shutil
 from pathlib import Path
@@ -17,14 +16,14 @@ import matplotlib.patches as patches
 import pandas as pd
 import numpy as np
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
+# ── Dynamic Paths ─────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent
 CLEANED_DIR = BASE_DIR / 'data' / 'cleaned'
 POWERBI_DIR = BASE_DIR / 'powerbi'
-SCREENSHOTS_DIR = POWERBI_DIR / 'screenshots'
+PREVIEWS_DIR = POWERBI_DIR / 'previews'
 
 POWERBI_DIR.mkdir(parents=True, exist_ok=True)
-SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── 1. Load and Standardize Master Dataset ─────────────────────────────────────
 print("Loading master dataset...")
@@ -118,11 +117,10 @@ builder.save(pbix_path)
 print(f"PBIX successfully generated: {pbix_path} ({os.path.getsize(pbix_path) // 1024} KB)")
 
 # ── 3. High-Resolution Analytical Report Preview Renderer ──────────────────────
-print("Generating clean analytical report previews...")
+print("Generating clean analytical report preview renders...")
 
 def draw_clean_report_header(fig, page_title, active_tab_index=0):
     """Draws a clean, professional executive report header without fake UI chrome."""
-    # Top Report Banner
     ax_banner = fig.add_axes([0, 0.93, 1, 0.07])
     ax_banner.set_facecolor('#0F172A')
     ax_banner.axis('off')
@@ -133,7 +131,6 @@ def draw_clean_report_header(fig, page_title, active_tab_index=0):
     ax_banner.text(0.98, 0.5, 'Data Model: ASG_Airlines_Dashboard.pbix', color='#94A3B8',
                    fontsize=9, ha='right', va='center')
 
-    # Bottom Page Navigation Bar
     ax_bottom = fig.add_axes([0, 0, 1, 0.04])
     ax_bottom.set_facecolor('#1E293B')
     ax_bottom.axis('off')
@@ -201,20 +198,30 @@ for bar in bars:
     ax_c1.text(bar.get_width() + 5, bar.get_y() + bar.get_height()/2, f'{int(bar.get_width())}',
                va='center', fontsize=9, fontweight='bold', color=DARK)
 
+# Fixed: Departure Slots Bar Chart with exact category matching & clean labels
 ax_c2 = fig.add_axes([0.53, 0.12, 0.43, 0.58])
 ax_c2.set_facecolor(CARD_BG)
-slots = ['Early Morning', 'Morning', 'Afternoon', 'Evening', 'Night']
-slot_counts = df['departure_slot'].value_counts().reindex(slots)
-bars2 = ax_c2.bar(slot_counts.index, slot_counts.values, color=['#0369A1', '#0284C7', '#38BDF8', '#7DD3FC', '#0C4A6E'])
+slot_categories = [
+    'Early Morning (05-09)',
+    'Morning (09-12)',
+    'Afternoon (12-17)',
+    'Evening (17-21)',
+    'Night (21-05)'
+]
+slot_labels = ['Early Morning\n(05-09)', 'Morning\n(09-12)', 'Afternoon\n(12-17)', 'Evening\n(17-21)', 'Night\n(21-05)']
+slot_counts = df['departure_slot'].value_counts().reindex(slot_categories).fillna(0)
+
+bars2 = ax_c2.bar(slot_labels, slot_counts.values, color=['#0369A1', '#0284C7', '#38BDF8', '#7DD3FC', '#0C4A6E'])
 ax_c2.set_title('Traffic by Departure Time Slot', fontsize=12, fontweight='bold', color=DARK, pad=10)
 ax_c2.grid(axis='y', linestyle='--', alpha=0.5)
+ax_c2.tick_params(axis='x', labelsize=8.5)
 for bar in bars2:
     h_val = bar.get_height()
     val_str = f'{int(h_val)}' if not np.isnan(h_val) else '0'
-    ax_c2.text(bar.get_x() + bar.get_width()/2, (h_val if not np.isnan(h_val) else 0) + 5, val_str,
-               ha='center', fontsize=9, fontweight='bold', color=DARK)
+    ax_c2.text(bar.get_x() + bar.get_width()/2, (h_val if not np.isnan(h_val) else 0) + 6, val_str,
+               ha='center', fontsize=9.5, fontweight='bold', color=DARK)
 
-fig.savefig(SCREENSHOTS_DIR / '01_operations_overview.png', dpi=150)
+fig.savefig(PREVIEWS_DIR / '01_operations_overview.png', dpi=150)
 plt.close(fig)
 
 # ── Preview 2: Route & Delay Performance ───────────────────────────────────────
@@ -254,7 +261,7 @@ for bar in bars_r:
     ax_routes.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, f'{int(bar.get_height())}',
                    ha='center', fontsize=9, fontweight='bold', color=DARK)
 
-fig.savefig(SCREENSHOTS_DIR / '02_route_delay_performance.png', dpi=150)
+fig.savefig(PREVIEWS_DIR / '02_route_delay_performance.png', dpi=150)
 plt.close(fig)
 
 # ── Preview 3: Commercial & Financial Trends ──────────────────────────────────
@@ -280,7 +287,7 @@ ax_pay.pie(pay_counts.values, labels=pay_counts.index, autopct='%1.1f%%',
            colors=['#0284C7', '#0D9488', '#EA580C', '#7C3AED'], startangle=140)
 ax_pay.set_title('Payment Gateway Method Split', fontsize=12, fontweight='bold', color=DARK, pad=10)
 
-fig.savefig(SCREENSHOTS_DIR / '03_commercial_financial_trends.png', dpi=150)
+fig.savefig(PREVIEWS_DIR / '03_commercial_financial_trends.png', dpi=150)
 plt.close(fig)
 
 # ── Preview 4: Passenger Demographics & Loyalty ────────────────────────────────
@@ -305,25 +312,25 @@ ax_gen.pie(gender_counts.values, labels=['Male (M)', 'Female (F)'], autopct='%1.
            colors=['#0284C7', '#EC4899'], startangle=140)
 ax_gen.set_title('Passenger Gender Ratio', fontsize=12, fontweight='bold', color=DARK, pad=10)
 
-fig.savefig(SCREENSHOTS_DIR / '04_passenger_demographics_loyalty.png', dpi=150)
+fig.savefig(PREVIEWS_DIR / '04_passenger_demographics_loyalty.png', dpi=150)
 plt.close(fig)
 
 # ── Executive Hero Preview Image ──────────────────────────────────────────────
-shutil.copy2(SCREENSHOTS_DIR / '01_operations_overview.png', SCREENSHOTS_DIR / 'asg_airlines_dashboard_preview.png')
-shutil.copy2(SCREENSHOTS_DIR / '01_operations_overview.png', POWERBI_DIR / 'dashboard_screenshot.png')
+shutil.copy2(PREVIEWS_DIR / '01_operations_overview.png', PREVIEWS_DIR / 'asg_airlines_dashboard_preview.png')
+shutil.copy2(PREVIEWS_DIR / '01_operations_overview.png', POWERBI_DIR / 'dashboard_preview.png')
 
-print("Default dashboard screenshot saved:", POWERBI_DIR / 'dashboard_screenshot.png')
+print("Executive preview saved:", POWERBI_DIR / 'dashboard_preview.png')
 
-# Sync artifacts to ASG-Airlines-Pipeline
+# Sync artifacts to ASG-Airlines-Pipeline dynamically
 asg_powerbi = BASE_DIR.parent / 'ASG-Airlines-Pipeline' / 'powerbi'
 if asg_powerbi.parent.exists():
     asg_powerbi.mkdir(parents=True, exist_ok=True)
     shutil.copy2(pbix_path, asg_powerbi / 'ASG_Airlines_Dashboard.pbix')
-    shutil.copy2(POWERBI_DIR / 'dashboard_screenshot.png', asg_powerbi / 'dashboard_screenshot.png')
-    asg_screenshots = asg_powerbi / 'screenshots'
-    asg_screenshots.mkdir(parents=True, exist_ok=True)
-    for img in SCREENSHOTS_DIR.glob('*.png'):
-        shutil.copy2(img, asg_screenshots / img.name)
+    shutil.copy2(POWERBI_DIR / 'dashboard_preview.png', asg_powerbi / 'dashboard_preview.png')
+    asg_previews = asg_powerbi / 'previews'
+    asg_previews.mkdir(parents=True, exist_ok=True)
+    for img in PREVIEWS_DIR.glob('*.png'):
+        shutil.copy2(img, asg_previews / img.name)
     print("All Power BI deliverables synced to ASG-Airlines-Pipeline!")
 
-print("All Power BI artifacts (.pbix + previews) built and verified successfully!")
+print("All Power BI artifacts (.pbix + preview renders) generated successfully!")

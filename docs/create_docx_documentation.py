@@ -1,6 +1,6 @@
 """
-ASG Airlines — Documentation & Walkthrough Word (.docx) Generator
-Generates publication-quality .docx document deliverables for ASG Airlines.
+ASG Airlines — Documentation Word (.docx) Generator
+Generates publication-quality .docx document deliverable for ASG Airlines.
 """
 
 from pathlib import Path
@@ -9,21 +9,18 @@ from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.oxml import parse_xml, OxmlElement
-from docx.oxml.ns import nsdecls, qn
+from docx.oxml import parse_xml
+from docx.oxml.ns import nsdecls
 
 def build_docx_documentation(output_file: Path, img_dir: Path):
     doc = Document()
 
-    # Page Margins
-    sections = doc.sections
-    for section in sections:
+    for section in doc.sections:
         section.top_margin = Inches(0.8)
         section.bottom_margin = Inches(0.8)
         section.left_margin = Inches(0.8)
         section.right_margin = Inches(0.8)
 
-    # Styling helper
     def set_cell_background(cell, fill_hex):
         shading_elm = parse_xml(f'<w:shd {nsdecls("w")} w:fill="{fill_hex}"/>')
         cell._tc.get_or_add_tcPr().append(shading_elm)
@@ -51,7 +48,7 @@ def build_docx_documentation(output_file: Path, img_dir: Path):
     h1 = doc.add_heading("1. Executive Overview & Deliverables Inventory", level=1)
     h1.runs[0].font.color.rgb = RGBColor(30, 58, 138)
 
-    p_body = doc.add_paragraph("This enterprise documentation outlines the end-to-end local data engineering pipeline and Power BI reporting solution developed for ASG Airlines. The solution ingests, cleanses, standardizes, transforms, governs, and models data across all 4 core operational tables: flights, bookings, passengers, and payments.")
+    doc.add_paragraph("This enterprise documentation outlines the end-to-end local data engineering pipeline and Power BI reporting solution developed for ASG Airlines. The solution ingests, cleanses, standardizes, transforms, governs, and models data across all 4 core operational tables: flights, bookings, passengers, and payments.")
 
     # Table of Deliverables
     table = doc.add_table(rows=1, cols=4)
@@ -65,8 +62,8 @@ def build_docx_documentation(output_file: Path, img_dir: Path):
         set_cell_background(hdr_cells[i], "1E3A8A")
 
     deliverables = [
-        ("Power BI Report File", "powerbi/ASG_Airlines_Dashboard.pbix", ".pbix (382 KB)", "✅ Built & Included"),
-        ("Executive Dashboard Screenshots", "powerbi/screenshots/", ".png (5 visual images)", "✅ Built & Included"),
+        ("Power BI Report File", "powerbi/ASG_Airlines_Dashboard.pbix", ".pbix (373 KB)", "✅ Built & Included"),
+        ("Analytical Report Previews", "powerbi/previews/", ".png (4 page renders)", "✅ Built & Included"),
         ("Architecture & Data Flow Diagram", "docs/architecture_data_flow_diagram.png", ".png Visual Diagram", "✅ Built & Included"),
         ("Relational ERD Data Model", "docs/relational_data_model_diagram.png", ".png Visual ERD", "✅ Built & Included"),
         ("Solution Architecture Walkthrough", "Solution_Walkthrough.md", "Narrative Walkthrough", "✅ Built & Included"),
@@ -118,25 +115,27 @@ def build_docx_documentation(output_file: Path, img_dir: Path):
     doc.add_paragraph()
 
     # Section 4: Power BI Report
-    h4 = doc.add_heading("4. Power BI Interactive Report & Visual Dashboards", level=1)
+    h4 = doc.add_heading("4. Power BI Interactive Report & Analytical Previews", level=1)
     h4.runs[0].font.color.rgb = RGBColor(30, 58, 138)
-    doc.add_paragraph("The deliverables include ASG_Airlines_Dashboard.pbix containing 4 visual dashboard pages, dark executive aesthetics, and DAX measures.")
+    doc.add_paragraph("The deliverables include ASG_Airlines_Dashboard.pbix containing 4 visual dashboard pages, data models, and DAX measures. The preview below highlights the Operations Overview analytical page.")
 
-    pbi_img = img_dir / ".." / "powerbi" / "screenshots" / "asg_airlines_dashboard_preview.png"
+    pbi_img = img_dir.parent / "powerbi" / "previews" / "asg_airlines_dashboard_preview.png"
     if pbi_img.exists():
         doc.add_picture(str(pbi_img.resolve()), width=Inches(6.5))
-        p_cap3 = doc.add_paragraph("Figure 3: Executive Power BI Visual Dashboard Suite Preview")
+        p_cap3 = doc.add_paragraph("Figure 3: Operations Overview Analytical Report Preview")
         p_cap3.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_cap3.runs[0].font.size = Pt(9)
         p_cap3.runs[0].font.italic = True
 
+    output_file.parent.mkdir(parents=True, exist_ok=True)
     doc.save(output_file)
     print(f"Created Word documentation (.docx): {output_file}")
 
 if __name__ == "__main__":
-    github_root = Path(r"d:\Desktop\Airline\airline_pipeline_github")
-    asg_root = Path(r"d:\Desktop\Airline\ASG-Airlines-Pipeline")
+    repo_root = Path(__file__).resolve().parent.parent
+    docs_dir = repo_root / "docs"
+    build_docx_documentation(repo_root / "ASG_Airlines_Documentation.docx", docs_dir)
     
-    build_docx_documentation(github_root / "ASG_Airlines_Documentation.docx", github_root / "docs")
-    build_docx_documentation(asg_root / "ASG_Airlines_Documentation.docx", asg_root / "docs")
-    build_docx_documentation(asg_root / "docs" / "ASG_Airlines_Documentation.docx", asg_root / "docs")
+    asg_root = repo_root.parent / "ASG-Airlines-Pipeline"
+    if asg_root.exists():
+        build_docx_documentation(asg_root / "ASG_Airlines_Documentation.docx", asg_root / "docs")

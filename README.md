@@ -1,4 +1,4 @@
-# ✈️ ASG Airlines — End-to-End Data Engineering Pipeline & Power BI Dashboard
+# ✈️ ASG Airlines — End-to-End Data Engineering Pipeline & Power BI Analytics
 
 An enterprise-grade, fail-safe local data engineering pipeline and interactive Power BI reporting suite built for ASG Airlines to ingest, clean, standardize, transform, govern, and report on flight operations, bookings, passenger demographics, and payments — **fully utilizing all 4 core operational tables**.
 
@@ -8,21 +8,23 @@ An enterprise-grade, fail-safe local data engineering pipeline and interactive P
 
 ---
 
-## 📊 Power BI Dashboard Preview & Interactive Report
+## 📊 Power BI Dashboard & Analytical Report Suite
 
-The repository includes a ready-to-use **Power BI Report File (`.pbix`)** with 4 interactive dashboard pages, real-time KPI metrics, DAX measures, dark/glassmorphic executive aesthetics, and interactive visual filtering.
+The repository includes a ready-to-use **Power BI Report File (`.pbix`)** with 4 interactive dashboard pages, real-time KPI metrics, DAX measures, dark/glassmorphic executive styling, and interactive visual filtering.
 
-### 🖼️ Executive Dashboard Hero Preview
-![ASG Airlines Power BI Executive Dashboard Preview](powerbi/screenshots/asg_airlines_dashboard_preview.png)
+### 🖼️ Executive Analytical Report Hero Preview
+![ASG Airlines Power BI Executive Report Preview](powerbi/previews/asg_airlines_dashboard_preview.png)
 
 ### 📁 Primary Power BI Deliverables
-- **Power BI Report File:** [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix) *(373 KB complete Power BI report model with data, measures, layout, and visual pages)*
-- **Main Dashboard Screenshot:** [`powerbi/dashboard_screenshot.png`](powerbi/dashboard_screenshot.png)
-- **High-Resolution Page Screenshots:** [`powerbi/screenshots/`](powerbi/screenshots/)
-  - `01_operations_overview.png` — Executive KPIs, flight volume, airline market share, duration trends
-  - `02_route_delay_performance.png` — Route heatmaps, departure time slot congestion, delay risk rates
+- **Power BI Report File:** [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix) *(373 KB complete Power BI report model with data tables, measures, layout, and visual pages)*
+- **Executive Report Preview:** [`powerbi/dashboard_preview.png`](powerbi/dashboard_preview.png)
+- **High-Resolution Page Preview Renders:** [`powerbi/previews/`](powerbi/previews/)
+  - `01_operations_overview.png` — Executive KPIs, flight volume, airline market share, departure time slot traffic
+  - `02_route_delay_performance.png` — Route leaderboard, delay risk rates, overnight flight analysis
   - `03_commercial_financial_trends.png` — Revenue per airline, payment gateway splits, booking status distribution
-  - `04_passenger_demographics_loyalty.png` — Passenger age/gender distribution, revenue by age group, top frequent flyers
+  - `04_passenger_demographics_loyalty.png` — Passenger age/gender distribution, customer segmentation
+
+> 📌 **Note on Power BI Deliverables:** The primary BI deliverable is the native Power BI Desktop report file [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix) (built programmatically via `pbix-mcp` with full VertiPaq data models, DAX measures, slicers, and visual pages). Reviewers with Power BI Desktop can open `ASG_Airlines_Dashboard.pbix` directly. The visual PNG files in `powerbi/previews/` serve as analytical report previews generated from the data model.
 
 ---
 
@@ -66,7 +68,8 @@ In addition to all basic required KPIs (Route Traffic, Airline Duration, Route D
 ```
 airline_pipeline/
 ├── ASG_Airlines_Pipeline.ipynb     # Interactive Jupyter Notebook (Full ETL, EDA & Analytics)
-├── ASG_Airlines_Documentation.md    # Comprehensive technical documentation & case study
+├── ASG_Airlines_Documentation.docx # Comprehensive technical documentation (Word format)
+├── Solution_Walkthrough.md         # Narrative solution & architecture walkthrough
 ├── run_pipeline.py                 # Standalone fail-safe ETL pipeline script
 ├── requirements.txt                # Python environment dependencies
 ├── .gitignore                      # Ignore raw sensitive production data & build artifacts
@@ -75,15 +78,21 @@ airline_pipeline/
 ├── docs/
 │   ├── architecture_data_flow_diagram.png # Visual Architecture & Data Flow PNG
 │   ├── relational_data_model_diagram.png # Visual Relational ERD Schema PNG
-│   └── generate_diagrams.py        # Python script to regenerate visual diagrams
+│   ├── create_docx_documentation.py # Word document generator script
+│   └── generate_diagrams.py        # Visual diagram generator script
 │
 ├── powerbi/
 │   ├── ASG_Airlines_Dashboard.pbix # ⭐ Built Power BI Report File (.pbix)
-│   ├── dashboard_screenshot.png    # Primary Executive Dashboard Screenshot
+│   ├── dashboard_preview.png       # Executive Analytical Report Preview
 │   ├── POWERBI_SETUP_GUIDE.md      # Step-by-step Power BI setup & DAX guide
 │   ├── check_powerbi_files.py      # Verification script for Power BI data sources
-│   ├── generate_dashboard_and_screenshots.py # Script to rebuild .pbix & render screenshots
-│   └── screenshots/                # High-resolution visual dashboard screenshots
+│   ├── generate_dashboard_and_screenshots.py # Script to rebuild .pbix & render previews
+│   └── previews/                   # High-resolution analytical report preview renders
+│       ├── 01_operations_overview.png
+│       ├── 02_route_delay_performance.png
+│       ├── 03_commercial_financial_trends.png
+│       ├── 04_passenger_demographics_loyalty.png
+│       └── asg_airlines_dashboard_preview.png
 │
 └── data/
     ├── raw/
@@ -140,7 +149,7 @@ python run_pipeline.py
 ```
 *Note: If the full `data/raw/UseCase - Airlines.xlsx` file is present, it will process the production data; otherwise, it seamlessly processes `data/raw/sample_usecase_airlines.xlsx`.*
 
-### Option 3: Regenerate Power BI (.pbix) & Screenshots Programmatically
+### Option 3: Regenerate Power BI (.pbix) & Previews Programmatically
 ```bash
 python powerbi/generate_dashboard_and_screenshots.py
 ```

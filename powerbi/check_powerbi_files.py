@@ -1,67 +1,97 @@
 """
 ASG Airlines — Power BI Setup Helper
-=====================================
-Run this script ONCE to verify that all required CSV files exist
-for loading into Power BI Desktop.
+====================================
+Run this script to verify that all required CSV files, .pbix report file,
+and analytical preview images are in place.
 """
 
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parent.parent
+CLEANED = BASE / 'data' / 'cleaned'
+AGG = BASE / 'data' / 'aggregated'
+POWERBI = BASE / 'powerbi'
+PREVIEWS = POWERBI / 'previews'
 
-FILES = {
-    "Cleaned Datasets (All 4 Tables + Master)": [
-        BASE / "data/cleaned/cleaned_flights.csv",
-        BASE / "data/cleaned/cleaned_bookings_masked.csv",
-        BASE / "data/cleaned/cleaned_passengers_masked.csv",
-        BASE / "data/cleaned/cleaned_payments.csv",
-        BASE / "data/cleaned/master_dataset.csv",
-    ],
-    "KPI Aggregations (Flight, Booking, Payment & Passenger Analytics)": [
-        BASE / "data/aggregated/kpi_route_traffic.csv",
-        BASE / "data/aggregated/kpi_avg_duration_by_airline.csv",
-        BASE / "data/aggregated/kpi_avg_duration_by_route.csv",
-        BASE / "data/aggregated/kpi_airline_distribution.csv",
-        BASE / "data/aggregated/kpi_delay_summary.csv",
-        BASE / "data/aggregated/kpi_revenue_by_airline.csv",
-        BASE / "data/aggregated/kpi_departure_slots.csv",
-        BASE / "data/aggregated/kpi_booking_status.csv",
-        BASE / "data/aggregated/kpi_payment_methods.csv",
-        BASE / "data/aggregated/kpi_passenger_demographics.csv",
-        BASE / "data/aggregated/kpi_frequent_flyers.csv",
-        BASE / "data/aggregated/kpi_airline_passenger_demographics.csv",
-    ],
-    "Visualizations": [
-        BASE / "data/cleaned/viz_airline_distribution.png",
-        BASE / "data/cleaned/viz_avg_duration_route.png",
-        BASE / "data/cleaned/viz_delay_rate.png",
-        BASE / "data/cleaned/viz_departure_slots.png",
-        BASE / "data/cleaned/viz_duration_dist.png",
-        BASE / "data/cleaned/viz_route_heatmap.png",
-        BASE / "data/cleaned/viz_passenger_demographics.png",
-        BASE / "data/cleaned/viz_passenger_revenue_by_age.png",
-    ],
-}
+REQUIRED_CLEANED = [
+    'master_dataset.csv',
+    'cleaned_flights.csv',
+    'cleaned_bookings_masked.csv',
+    'cleaned_passengers_masked.csv',
+    'cleaned_payments.csv'
+]
 
-print("=" * 60)
-print("   ASG Airlines — Power BI File Readiness Check")
-print("=" * 60)
+REQUIRED_KPIS = [
+    'kpi_route_traffic.csv',
+    'kpi_avg_duration_by_airline.csv',
+    'kpi_avg_duration_by_route.csv',
+    'kpi_airline_distribution.csv',
+    'kpi_delay_summary.csv',
+    'kpi_revenue_by_airline.csv',
+    'kpi_departure_slots.csv',
+    'kpi_booking_status.csv',
+    'kpi_payment_methods.csv',
+    'kpi_passenger_demographics.csv',
+    'kpi_frequent_flyers.csv',
+    'kpi_airline_passenger_demographics.csv'
+]
 
-all_ok = True
-for section, paths in FILES.items():
-    print(f"\n  {section}:")
-    for p in paths:
+REQUIRED_PBI = [
+    'ASG_Airlines_Dashboard.pbix',
+    'dashboard_preview.png'
+]
+
+REQUIRED_PREVIEWS = [
+    '01_operations_overview.png',
+    '02_route_delay_performance.png',
+    '03_commercial_financial_trends.png',
+    '04_passenger_demographics_loyalty.png',
+    'asg_airlines_dashboard_preview.png'
+]
+
+def check():
+    print("=" * 60)
+    print("  ASG Airlines — Power BI Artifacts Readiness Verification")
+    print("=" * 60)
+    
+    all_ok = True
+    
+    print("\n[1] Checking Cleaned Core Data Files (data/cleaned/):")
+    for f in REQUIRED_CLEANED:
+        p = CLEANED / f
         exists = p.exists()
-        size   = f"{p.stat().st_size // 1024} KB" if exists else "MISSING"
-        status = "[OK]    " if exists else "[MISSING]"
-        all_ok = all_ok and exists
-        print(f"    {status} {p.name:<45} {size}")
+        size_kb = (p.stat().st_size // 1024) if exists else 0
+        print(f"  [{'OK' if exists else 'MISSING'}] {f} ({size_kb} KB)")
+        if not exists: all_ok = False
 
-print("\n" + "=" * 60)
-if all_ok:
-    print("  [OK] All 4 tables & KPIs ready! Open Power BI Desktop and")
-    print("       import master_dataset.csv and KPI tables.")
-else:
-    print("  [MISSING FILES] Some files are missing. Please re-run")
-    print("                  run_pipeline.py first.")
-print("=" * 60)
+    print("\n[2] Checking 12 KPI Summary Datasets (data/aggregated/):")
+    for f in REQUIRED_KPIS:
+        p = AGG / f
+        exists = p.exists()
+        print(f"  [{'OK' if exists else 'MISSING'}] {f}")
+        if not exists: all_ok = False
+
+    print("\n[3] Checking Power BI Report & Deliverables (powerbi/):")
+    for f in REQUIRED_PBI:
+        p = POWERBI / f
+        exists = p.exists()
+        size_kb = (p.stat().st_size // 1024) if exists else 0
+        print(f"  [{'OK' if exists else 'MISSING'}] {f} ({size_kb} KB)")
+        if not exists: all_ok = False
+
+    print("\n[4] Checking Analytical Preview Images (powerbi/previews/):")
+    for f in REQUIRED_PREVIEWS:
+        p = PREVIEWS / f
+        exists = p.exists()
+        print(f"  [{'OK' if exists else 'MISSING'}] {f}")
+        if not exists: all_ok = False
+
+    print("\n" + "=" * 60)
+    if all_ok:
+        print("[SUCCESS] ALL ARTIFACTS VERIFIED AND READY FOR REPORTING!")
+    else:
+        print("[ERROR] Some artifacts are missing. Run run_pipeline.py and generate_dashboard_and_screenshots.py.")
+    print("=" * 60)
+
+if __name__ == '__main__':
+    check()
