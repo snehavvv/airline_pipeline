@@ -10,15 +10,15 @@
 7. [KPI Definitions](#7-kpi-definitions)
 8. [Data Model](#8-data-model)
 9. [Assumptions](#9-assumptions)
-10. [Power BI Dashboard Guide](#10-power-bi-dashboard-guide)
+10. [Power BI Report & Dashboard Deliverables](#10-power-bi-report--dashboard-deliverables)
 
 ---
 
 ## 1. Project Overview
 
 **Client:** ASG Airlines  
-**Objective:** Build an end-to-end local Python data pipeline to ingest, clean, transform, and export flight operational data for BI reporting.  
-**Tools:** Python 3.10, pandas, numpy, matplotlib, seaborn, Jupyter Notebook, Power BI Desktop  
+**Objective:** Build an end-to-end local Python data pipeline to ingest, clean, transform, and export flight operational and customer data across **all 4 core tables** (`flights`, `bookings`, `passengers`, `payments`) for BI reporting.  
+**Tools:** Python 3.10+, pandas, numpy, matplotlib, seaborn, Jupyter Notebook, Power BI Desktop  
 **Approach:** Local pipeline (Python/Jupyter) — no cloud dependencies required.
 
 ---
@@ -30,7 +30,7 @@
 │                        RAW DATA LAYER                           │
 │   UseCase - Airlines.xlsx                                       │
 │   ├── Sheet: flights    (1,020 rows)                            │
-│   ├── Sheet: bookings   (1,012 rows)                            │
+│   ├── Sheet: bookings   (1,000 rows)                            │
 │   ├── Sheet: passengers (1,039 rows)                            │
 │   └── Sheet: payments   (1,000 rows)                            │
 └───────────────────────────┬─────────────────────────────────────┘
@@ -49,42 +49,48 @@
 │   • Handle null critical fields (drop rows)                     │
 │   • Deduplicate (full row + flight_id level)                    │
 │   • Standardize strings (upper/lower case, strip)               │
-│   • Parse datetime columns                                      │
+│   • Parse datetime columns safely with coerce                   │
 │   • Impute UNKNOWN airlines via flight_id prefix                │
 │   • Calculate duration_mins (overnight-aware)                   │
-│   • Flag is_overnight flights                                   │
-│   • Derive route, departure_slot, is_delayed                    │
+│   • Flag is_overnight flights & departure_slots                 │
+│   • Derive route & heuristic is_delayed flag                    │
+│   • Segment passengers by age_group (<18, 18-30, 31-45, etc.)   │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                       PII MASKING                               │
 │   • SHA-256 hash: aadhaar_id, email, phone, passport            │
-│   • Pseudonymise: first_name, last_name                         │
+│   • Pseudonymise: first_name, last_name, emergency contacts     │
 │   • Generalise: date_of_birth → birth_year                      │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                     KPI AGGREGATION                             │
-│   • avg_duration by airline & route                             │
-│   • route_traffic (flight count + delay rate)                   │
-│   • delay_summary by airline                                    │
-│   • airline_distribution (market share)                         │
-│   • revenue_by_airline                                          │
-│   • departure_slots, booking_status, payment_methods            │
+│   • Flights: avg_duration, route_traffic, delay_summary,        │
+│     airline_distribution, departure_slots                       │
+│   • Bookings & Payments: revenue_by_airline, booking_status,    │
+│     payment_methods                                             │
+│   • Passengers (Customer Intelligence): passenger_demographics, │
+│     frequent_flyers (loyalty), airline_passenger_demographics   │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      EXPORT LAYER                               │
-│   data/cleaned/      → 5 CSV files (masked)                     │
-│   data/aggregated/   → 9 KPI CSV files                          │
-│   data/cleaned/      → 6 PNG visualisation charts               │
+│   data/cleaned/      → 5 CSV files (All 4 tables + Unified Master)
+│   data/aggregated/   → 12 KPI CSV files                         │
+│   data/cleaned/      → 8 PNG visualisation charts               │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
                             ▼
-                    [Power BI Dashboard]
+┌─────────────────────────────────────────────────────────────────┐
+│                 POWER BI REPORT (.PBIX)                         │
+│   powerbi/ASG_Airlines_Dashboard.pbix (Ready-to-use .pbix)     │
+│   powerbi/dashboard_screenshot.png (Executive preview)          │
+│   powerbi/screenshots/ (Page-by-page visual dashboards)         │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -94,49 +100,48 @@
 ### 3.1 flights Sheet
 
 | Column | Type | Description | Issues Found |
-|--------|------|-------------|--------------|
+|---|---|---|---|
 | `flight_id` | string | Unique flight identifier (e.g. AI155, SJ010) | 16 duplicate IDs |
 | `airline` | string | Airline name | 31 UNKNOWN values |
-| `source` | string | IATA departure airport code | Minor: some nulls |
-| `destination` | string | IATA arrival airport code | Minor: some nulls |
+| `source` | string | IATA departure airport code | Minor nulls |
+| `destination` | string | IATA arrival airport code | Minor nulls |
 | `departure_time` | datetime | Scheduled departure (full datetime) | None |
 | `arrival_time` | datetime | Scheduled arrival (full datetime) | Overnight flights span next day |
-| `duration` | formula | Excel formula string `=F2-E2` | **Not usable** — recalculated |
-
-**Additional unnamed columns** (cols 8–11): Empty Excel artifacts — dropped.
+| `duration` | formula | Excel formula string `=F2-E2` | Recalculated in pipeline |
 
 ### 3.2 bookings Sheet
 
 | Column | Type | Description |
-|--------|------|-------------|
+|---|---|---|
 | `booking_id` | string | Unique booking identifier |
 | `passenger_id` | string | FK → passengers |
 | `flight_id` | string | FK → flights |
 | `booking_date` | datetime | When the booking was created |
 | `status` | string | CONFIRMED / CANCELLED |
-| `passport_number` | string | **PII** — hashed |
+| `passport_number` | string | **PII** — hashed (SHA-256) |
 | `seat_number` | string | Assigned seat |
 | `emergency_contact_name` | string | **PII** — pseudonymised |
-| `emergency_contact_phone` | string | **PII** — hashed |
+| `emergency_contact_phone` | string | **PII** — hashed (SHA-256) |
 
 ### 3.3 passengers Sheet
 
 | Column | Type | Description |
-|--------|------|-------------|
+|---|---|---|
 | `passenger_id` | string | Unique passenger identifier |
-| `first_name` | string | **PII** — pseudonymised |
-| `last_name` | string | **PII** — pseudonymised |
-| `age` | integer | Passenger age |
-| `gender` | string | M / F |
-| `email` | string | **PII** — hashed |
-| `phone` | string | **PII** — hashed |
-| `aadhaar_id` | string | **Highly Sensitive PII** — hashed |
-| `date_of_birth` | date | **PII** — year only retained |
+| `first_name` | string | **PII** — pseudonymised (`F***`) |
+| `last_name` | string | **PII** — pseudonymised (`L***`) |
+| `age` | integer | Passenger age (1 to 89) |
+| `gender` | string | Standardized (M / F) |
+| `email` | string | **PII** — hashed (SHA-256) |
+| `phone` | string | **PII** — hashed (SHA-256) |
+| `aadhaar_id` | string | **Highly Sensitive PII** — hashed (SHA-256) |
+| `date_of_birth` | date | **PII** — birth_year retained for analytics |
+| `age_group` *(derived)* | string | `<18`, `18-30`, `31-45`, `46-60`, `60+` |
 
 ### 3.4 payments Sheet
 
 | Column | Type | Description |
-|--------|------|-------------|
+|---|---|---|
 | `payment_id` | string | Unique payment identifier |
 | `booking_id` | string | FK → bookings |
 | `amount` | float | Payment amount in INR |
@@ -149,7 +154,7 @@
 ### 4.1 Flights Cleaning Steps
 
 | Step | Action | Reason |
-|------|--------|--------|
+|---|---|---|
 | 1 | Drop `duration` column and unnamed cols | Duration is Excel formula string; unnamed cols are empty |
 | 2 | Standardize column names | Ensure consistent naming |
 | 3 | Strip/uppercase string columns | Removes leading/trailing whitespace inconsistencies |
@@ -163,10 +168,8 @@
 
 ### 4.2 UNKNOWN Airline Imputation
 
-Airlines were imputed using the industry-standard ICAO/IATA prefix convention:
-
 | Prefix | Airline |
-|--------|---------|
+|---|---|
 | `AI` | Air India |
 | `SJ` | SpiceJet |
 | `6F` | IndiGo |
@@ -174,18 +177,17 @@ Airlines were imputed using the industry-standard ICAO/IATA prefix convention:
 | `G8` | Go First |
 
 ### 4.3 Passengers & Bookings Cleaning
-
-- Standardize `gender` to uppercase (M/F)
-- Lowercase `email` addresses
-- Parse `date_of_birth` and `booking_date` with coerce
-- Drop full duplicates
+- Standardize `gender` to uppercase (`M` / `F`).
+- Ensure `age` is numeric; derive `age_group` bins (`Under 18`, `18-30`, `31-45`, `46-60`, `60+`).
+- Lowercase `email` addresses before hashing.
+- Parse `date_of_birth` and `booking_date` with `errors='coerce'`.
+- Drop duplicate rows.
 
 ---
 
 ## 5. Transformation Steps
 
 ### 5.1 Duration Calculation
-
 ```python
 flights['duration_mins'] = (
     (flights['arrival_time'] - flights['departure_time'])
@@ -193,15 +195,7 @@ flights['duration_mins'] = (
 ).round(2)
 ```
 
-**Overnight flights** are correctly handled because both `departure_time` and `arrival_time` are stored as full datetime objects (not just time strings). Subtracting a next-day datetime from a same-day datetime naturally yields the correct positive duration — no manual +24h adjustment needed.
-
-**Example:**
-- Departure: `2026-04-20 23:38`
-- Arrival: `2026-04-21 02:32`
-- Duration: 174 minutes ✓
-
 ### 5.2 Overnight Flag
-
 ```python
 flights['is_overnight'] = (
     flights['arrival_time'].dt.date > flights['departure_time'].dt.date
@@ -209,164 +203,127 @@ flights['is_overnight'] = (
 ```
 
 ### 5.3 Delay Flag
-
-A flight is flagged as **delayed** if its duration exceeds 130% of the average duration for that specific route:
-
+A flight is flagged as delayed if its duration exceeds 130% of the average duration for that route:
 ```python
 route_avg = flights.groupby('route')['duration_mins'].transform('mean')
 flights['is_delayed'] = (flights['duration_mins'] > route_avg * 1.30).astype(int)
 ```
 
-**Rationale:** A 30% threshold over route average accounts for natural variation while flagging genuine anomalies. This is a heuristic — a production system would use scheduled vs actual times.
-
 ### 5.4 Departure Time Slot
+- Early Morning: 05:00 – 08:59
+- Morning: 09:00 – 11:59
+- Afternoon: 12:00 – 16:59
+- Evening: 17:00 – 20:59
+- Night: 21:00 – 04:59
 
-| Slot | Hours |
-|------|-------|
-| Early Morning | 05:00 – 08:59 |
-| Morning | 09:00 – 11:59 |
-| Afternoon | 12:00 – 16:59 |
-| Evening | 17:00 – 20:59 |
-| Night | 21:00 – 04:59 |
-
-### 5.5 Route Column
-
+### 5.5 Demographic Age Grouping
 ```python
-flights['route'] = flights['source'] + ' to ' + flights['destination']
-# e.g., "BOM to DEL"
+def assign_age_group(age):
+    if pd.isna(age):  return 'Unknown'
+    if age < 18:      return 'Under 18'
+    if age <= 30:     return '18-30'
+    if age <= 45:     return '31-45'
+    if age <= 60:     return '46-60'
+    return '60+'
 ```
 
 ---
 
 ## 6. PII Masking & Data Governance
 
-### 6.1 Masking Techniques
-
-**SHA-256 Hashing (with salt):**
-```python
-SALT = 'ASG_AIRLINES_2026_SECURE_SALT'
-
-def sha256_hash(value):
-    salted = f"{SALT}:{value}"
-    return hashlib.sha256(salted.encode()).hexdigest()
-```
-
-Applied to: `aadhaar_id`, `email`, `phone`, `passport_number`, `emergency_contact_phone`
-
-- One-way: original value cannot be recovered
-- Deterministic: same input always produces same hash (enables cross-referencing within the system)
-- Salted: prevents rainbow table attacks
-
-**Pseudonymisation:**
-```python
-def pseudonymise_name(value):
-    return str(value)[0] + '***'  # e.g., "Vivaan" → "V***"
-```
-
-Applied to: `first_name`, `last_name`, `emergency_contact_name`
-
-**Generalisation:**
-- `date_of_birth` → `birth_year` (only year retained for age-group analytics)
-
-### 6.2 Access Control Recommendations
-
-| Role | Access Level |
-|------|-------------|
-| Data Engineer | Full raw data access (secure environment only) |
-| Analyst / BI Developer | Cleaned, masked CSVs only |
-| Business User | Power BI dashboard (aggregated KPIs only) |
-| External Auditor | Aggregated reports only, no individual records |
+- **SHA-256 Hashing (Salted):** Applied to `aadhaar_id`, `email`, `phone`, `passport_number`, and `emergency_contact_phone`.
+- **Pseudonymisation:** `first_name`, `last_name`, and `emergency_contact_name` masked to initial + asterisks (e.g. `K***`).
+- **Generalisation:** `date_of_birth` generalised to `birth_year`.
 
 ---
 
-## 7. KPI Definitions
+## 7. KPI Definitions (12 Total)
 
+### Operational & Flight KPIs
 | KPI | Formula | Output |
-|-----|---------|--------|
+|---|---|---|
 | **Average Flight Duration** | `mean(duration_mins)` per airline/route | Minutes |
 | **Route-wise Traffic** | `count(flight_id)` per route | Flight count |
 | **Delay Rate** | `sum(is_delayed) / count(flight_id) * 100` | Percentage |
 | **Airline Distribution** | `count(flight_id)` per airline | Count + market share % |
-| **Revenue by Airline** | `sum(amount)` via bookings→payments join | INR |
-| **Overnight Flights** | `sum(is_overnight)` | Count |
 | **Departure Slot Traffic** | `count(flight_id)` per time slot | Count |
+
+### Commercial & Financial KPIs
+| KPI | Formula | Output |
+|---|---|---|
+| **Revenue by Airline** | `sum(amount)` via bookings→payments join | INR |
 | **Booking Status** | `count(booking_id)` per status | Count |
 | **Payment Method Split** | `count + sum(amount)` per method | Count + INR |
+
+### Passenger & Customer Intelligence KPIs
+| KPI | Formula | Output |
+|---|---|---|
+| **Passenger Demographics** | `count(passenger_id)`, `count(booking_id)`, `sum(amount)` by gender & age group | Demographics summary |
+| **Frequent Flyers / Loyalty** | Top passengers by booking frequency and total spend | Customer leaderboard |
+| **Airline Demographics** | Passenger distribution by airline, gender, and age group | Preference matrix |
 
 ---
 
 ## 8. Data Model
 
+### Relational Schema (All 4 Tables Unified)
 ```
 passengers (1) ──────< bookings (M) >────── (1) flights
-                           │
-                           │ (1:1)
-                           │
-                        payments
+                            │
+                            │ (1:1)
+                            │
+                         payments
 ```
 
-**Star Schema for Power BI:**
-
-```
-            ┌──────────────┐
-            │  dim_flights │
-            │  (fact table)│
-            └──────┬───────┘
-                   │
-      ┌────────────┼────────────┐
-      │            │            │
-┌─────▼────┐  ┌────▼─────┐ ┌───▼──────┐
-│dim_airline│  │dim_route │ │dim_time  │
-│           │  │          │ │          │
-└───────────┘  └──────────┘ └──────────┘
-```
-
-**Files for Power BI:**
-- `master_dataset.csv` — main denormalized fact table
-- `kpi_*.csv` — pre-aggregated KPI tables for fast visuals
+### Unified Master Fact Table (`master_dataset.csv`)
+All 4 tables are joined into a single wide dataset for Power BI reporting:
+$$\text{Bookings} \Join \text{Flights} \Join \text{Payments} \Join \text{Passengers}$$
 
 ---
 
 ## 9. Assumptions
 
-1. **Overnight flights**: The raw Excel stores full `datetime` values for departure and arrival. Overnight scenarios are correctly represented (arrival date is the next day). No manual day-offset is needed.
-
-2. **UNKNOWN airline**: 31 records had `airline = UNKNOWN`. These were imputed using the flight_id prefix (e.g., AI → Air India). Records where prefix was unrecognized kept the UNKNOWN label.
-
-3. **Delay definition**: Since scheduled vs actual departure/arrival times are not available, delay is defined heuristically as a duration >30% above the route mean. In a production system, this would use actual scheduled times.
-
-4. **Duplicate flight_ids**: 16 flight IDs appeared more than once. The first occurrence was retained (assumed most recent/correct entry).
-
-5. **Duration validity**: Flights with duration ≤ 0 or > 1440 minutes (24 hours) are considered data errors and removed.
-
-6. **PII salt**: The salt value (`ASG_AIRLINES_2026_SECURE_SALT`) is hardcoded in the notebook. In production, this should be stored in an environment variable or secrets manager.
-
-7. **Currency**: All payment amounts are assumed to be in Indian Rupees (INR).
+1. **Overnight flights**: Departure and arrival are stored as full datetimes, naturally resolving overnight journeys across midnight.
+2. **UNKNOWN airline**: Imputed using flight ID 2-character prefixes (`AI`, `SJ`, `6F`, `UK`, `G8`).
+3. **Delay heuristic**: Flight duration >30% above the route average indicates delays.
+4. **All tables utilized**: All 4 raw tables (`flights`, `bookings`, `passengers`, `payments`) are ingested, cleaned, masked, aggregated, and joined into the analytical data model.
 
 ---
 
-## 10. Power BI Dashboard Guide
+## 10. Power BI Report & Dashboard Deliverables
 
-### Pages / Sections
+### 10.1 Key Power BI Files Included
+- **Power BI File (.pbix):** [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix)
+- **Primary Dashboard Screenshot:** [`powerbi/dashboard_screenshot.png`](powerbi/dashboard_screenshot.png)
+- **Automated Generation Script:** [`powerbi/generate_dashboard_and_screenshots.py`](powerbi/generate_dashboard_and_screenshots.py)
 
-| Page | Visuals |
-|------|---------|
-| **Overview** | KPI cards: total flights, avg duration, delay rate, overnight count |
-| **Duration Analysis** | Avg duration by route (bar), duration distribution (histogram), duration by airline (box) |
-| **Route Performance** | Route traffic heatmap, top routes by volume, route delay rate |
-| **Airline Trends** | Market share (donut), flights per airline (bar), avg duration per airline |
-| **Delay & Anomaly** | Delay rate by airline, delayed vs on-time (stacked bar), overnight flights map |
+### 10.2 Executive Dashboard Overview
+![ASG Airlines Executive Power BI Dashboard Preview](powerbi/screenshots/asg_airlines_dashboard_preview.png)
 
-### Power BI Setup Instructions
+### 10.3 Interactive Visual Dashboard Pages
 
-1. Open Power BI Desktop
-2. Get Data → Text/CSV → load `data/cleaned/master_dataset.csv`
-3. Also load `data/aggregated/kpi_*.csv` files as separate tables
-4. Use **Transform Data** to set correct data types:
-   - `departure_time`, `arrival_time` → DateTime
-   - `duration_mins` → Decimal Number
-   - `is_delayed`, `is_overnight` → Whole Number
-5. Create relationships:
-   - `master_dataset[flight_id]` → `kpi_route_traffic` (optional for drill-through)
-6. Build visuals using the KPI tables for aggregated views
-7. Add slicers: Airline, Route, Departure Slot, Date Range
+#### Page 1: Operations & Fleet Overview
+- Executive KPI Cards: Total Revenue, Total Flights, Delay Rate, Unique Passengers, Avg Flight Duration.
+- Flight Volume by Airline bar chart.
+- Airline Market Share donut chart.
+- Flight Duration Trends by Route column chart.
+![Page 1: Operations Overview](powerbi/screenshots/01_operations_overview.png)
+
+#### Page 2: Route & Delay Risk Performance
+- Top 10 Busiest Flight Routes chart.
+- Departure Time Slot Congestion analysis.
+- Route Delay Rate (%) leaderboard.
+![Page 2: Route & Delay Performance](powerbi/screenshots/02_route_delay_performance.png)
+
+#### Page 3: Commercial & Financial Trends
+- Gross Revenue by Airline breakdown.
+- Payment Method Distribution (UPI, Credit Card, Netbanking, Debit Card).
+- Booking Status Ratio (Confirmed vs. Cancelled).
+![Page 3: Commercial Financial Trends](powerbi/screenshots/03_commercial_financial_trends.png)
+
+#### Page 4: Passenger Demographics & Loyalty Analytics
+- Passenger Age Group Distribution (<18, 18-30, 31-45, 46-60, 60+).
+- Gender Share donut visual.
+- Revenue contribution by Passenger Age Group.
+- Customer Loyalty Leaderboard (Top Frequent Flyers by booking volume and total spend).
+![Page 4: Passenger Demographics & Loyalty](powerbi/screenshots/04_passenger_demographics_loyalty.png)

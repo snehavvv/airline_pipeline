@@ -1,20 +1,33 @@
 """
 ASG Airlines — Data Pipeline Runner
-Run this script directly to produce all cleaned CSVs and KPI aggregations.
+Run this script directly to produce all cleaned CSVs, 4-way unified master dataset,
+KPI aggregations (including passenger analytics), and visualizations.
 """
 
 import hashlib
 import logging
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR    = Path(__file__).resolve().parent
 RAW_DIR     = BASE_DIR / 'data' / 'raw'
 CLEANED_DIR = BASE_DIR / 'data' / 'cleaned'
 AGG_DIR     = BASE_DIR / 'data' / 'aggregated'
-RAW_FILE    = RAW_DIR / 'UseCase - Airlines.xlsx'
+
+CLEANED_DIR.mkdir(parents=True, exist_ok=True)
+AGG_DIR.mkdir(parents=True, exist_ok=True)
+RAW_DIR.mkdir(parents=True, exist_ok=True)
+
+RAW_FILE = RAW_DIR / 'UseCase - Airlines.xlsx'
+if not RAW_FILE.exists():
+    # Fallback to parent directory if raw file is not in data/raw
+    parent_raw = BASE_DIR.parent / 'UseCase - Airlines.xlsx'
+    if parent_raw.exists():
+        RAW_FILE = parent_raw
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,10 +73,12 @@ flights = flights[flights['arrival_time'] > flights['departure_time']]
 
 AIRLINE_MAP = {'AI': 'Air India', 'SJ': 'SpiceJet', '6F': 'IndiGo', 'UK': 'Vistara', 'G8': 'Go First'}
 
+
 def impute_airline(row):
     if row['airline'] == 'UNKNOWN':
         return AIRLINE_MAP.get(str(row['flight_id'])[:2], 'UNKNOWN')
     return row['airline']
+
 
 flights['airline'] = flights.apply(impute_airline, axis=1)
 
@@ -107,7 +122,21 @@ passengers['passenger_id'] = passengers['passenger_id'].astype(str).str.strip()
 passengers['gender']       = passengers['gender'].astype(str).str.upper().str.strip()
 passengers['email']        = passengers['email'].astype(str).str.lower().str.strip()
 passengers['date_of_birth']= pd.to_datetime(passengers['date_of_birth'], errors='coerce')
+passengers['age']          = pd.to_numeric(passengers['age'], errors='coerce')
+
+
+def assign_age_group(age):
+    if pd.isna(age):  return 'Unknown'
+    if age < 18:      return 'Under 18'
+    if age <= 30:     return '18-30'
+    if age <= 45:     return '31-45'
+    if age <= 60:     return '46-60'
+    return '60+'
+
+
+passengers['age_group']    = passengers['age'].apply(assign_age_group)
 passengers.drop_duplicates(inplace=True)
+log.info('Passengers after cleaning: %d', len(passengers))
 
 # ── 4. Clean Bookings ──────────────────────────────────────────────────────────
 bookings = raw['bookings'].copy()
@@ -121,6 +150,7 @@ bookings['flight_id']    = bookings['flight_id'].astype(str).str.strip().str.upp
 bookings['status']       = bookings['status'].astype(str).str.upper().str.strip()
 bookings['booking_date'] = pd.to_datetime(bookings['booking_date'], errors='coerce')
 bookings.drop_duplicates(inplace=True)
+log.info('Bookings after cleaning: %d', len(bookings))
 
 # ── 5. Clean Payments ──────────────────────────────────────────────────────────
 payments = raw['payments'].copy()
@@ -128,6 +158,7 @@ payments['payment_method'] = payments['payment_method'].astype(str).str.upper().
 payments['amount']         = pd.to_numeric(payments['amount'], errors='coerce')
 payments.drop_duplicates(inplace=True)
 payments.dropna(subset=['amount'], inplace=True)
+log.info('Payments after cleaning: %d', len(payments))
 
 # ── 6. PII Masking ─────────────────────────────────────────────────────────────
 SALT = 'ASG_AIRLINES_2026_SECURE_SALT'
@@ -161,6 +192,7 @@ bk_masked['emg_name_masked'] = bk_masked['emergency_contact_name'].apply(pseudo_
 bk_masked.drop(columns=['passport_number', 'emergency_contact_phone', 'emergency_contact_name'], inplace=True)
 
 # ── 7. KPI Aggregations ────────────────────────────────────────────────────────
+# 7.1 Flight & Route KPIs
 avg_by_airline = (
     flights.groupby('airline')['duration_mins']
     .agg(['mean', 'min', 'max', 'count']).round(2)
@@ -206,6 +238,7 @@ airline_dist['market_share_%'] = (
     airline_dist['flight_count'] / airline_dist['flight_count'].sum() * 100
 ).round(2)
 
+# 7.2 Booking & Payment KPIs
 booking_rev = bk_masked.merge(payments, on='booking_id', how='left')
 booking_rev = booking_rev.merge(flights[['flight_id', 'airline', 'route']], on='flight_id', how='left')
 revenue_by_airline = (
@@ -218,6 +251,53 @@ revenue_by_airline = (
 slot_traffic        = flights.groupby('departure_slot')['flight_id'].count().reset_index().rename(columns={'flight_id': 'flight_count'})
 booking_status      = bk_masked.groupby('status')['booking_id'].count().reset_index().rename(columns={'booking_id': 'count'})
 payment_method_dist = payments.groupby('payment_method')['amount'].agg(['count', 'sum']).round(2).reset_index()
+
+# 7.3 Passenger Demographics & Traveler KPIs (Fully Utilizing Passengers Table)
+pax_booking_pay = (
+    bk_masked
+    .merge(payments[['booking_id', 'amount', 'payment_method']], on='booking_id', how='left')
+    .merge(pax_masked[['passenger_id', 'age', 'age_group', 'gender']], on='passenger_id', how='left')
+)
+
+passenger_demographics = (
+    pax_booking_pay.groupby(['gender', 'age_group'])
+    .agg(
+        total_passengers=('passenger_id', 'nunique'),
+        total_bookings=('booking_id', 'count'),
+        total_revenue=('amount', 'sum'),
+        avg_spend=('amount', 'mean')
+    )
+    .round(2)
+    .reset_index()
+    .sort_values(['gender', 'age_group'])
+)
+
+frequent_flyers = (
+    pax_booking_pay.groupby(['passenger_id', 'gender', 'age_group'])
+    .agg(
+        total_bookings=('booking_id', 'count'),
+        confirmed_bookings=('status', lambda s: (s == 'CONFIRMED').sum()),
+        total_spend=('amount', 'sum'),
+        avg_spend_per_booking=('amount', 'mean')
+    )
+    .round(2)
+    .reset_index()
+    .sort_values(by=['total_bookings', 'total_spend'], ascending=False)
+)
+
+airline_pax_demographics = (
+    booking_rev.merge(pax_masked[['passenger_id', 'gender', 'age_group']], on='passenger_id', how='left')
+    .groupby(['airline', 'gender', 'age_group'])
+    .agg(
+        booking_count=('booking_id', 'count'),
+        passenger_count=('passenger_id', 'nunique'),
+        total_revenue=('amount', 'sum'),
+        avg_revenue=('amount', 'mean')
+    )
+    .round(2)
+    .reset_index()
+    .sort_values(['airline', 'gender', 'age_group'])
+)
 
 # ── 8. Export ──────────────────────────────────────────────────────────────────
 flights_export = flights[[
@@ -232,13 +312,22 @@ pax_masked.to_csv(CLEANED_DIR / 'cleaned_passengers_masked.csv', index=False)
 bk_masked.to_csv(CLEANED_DIR / 'cleaned_bookings_masked.csv', index=False)
 payments.to_csv(CLEANED_DIR / 'cleaned_payments.csv', index=False)
 
+# Master denormalized dataset joining ALL 4 tables:
+# Bookings (base) + Flights + Payments + Passengers
+pax_cols_for_master = [
+    'passenger_id', 'age', 'age_group', 'gender', 'birth_year',
+    'first_name_masked', 'last_name_masked'
+]
+
 master = (
     bk_masked
     .merge(flights_export, on='flight_id', how='left')
     .merge(payments[['booking_id', 'amount', 'payment_method']], on='booking_id', how='left')
+    .merge(pax_masked[pax_cols_for_master], on='passenger_id', how='left')
 )
 master.to_csv(CLEANED_DIR / 'master_dataset.csv', index=False)
 
+# Export all 12 KPI tables
 route_traffic.to_csv(AGG_DIR / 'kpi_route_traffic.csv', index=False)
 avg_by_airline.to_csv(AGG_DIR / 'kpi_avg_duration_by_airline.csv', index=False)
 avg_by_route.to_csv(AGG_DIR / 'kpi_avg_duration_by_route.csv', index=False)
@@ -249,28 +338,78 @@ slot_traffic.to_csv(AGG_DIR / 'kpi_departure_slots.csv', index=False)
 booking_status.to_csv(AGG_DIR / 'kpi_booking_status.csv', index=False)
 payment_method_dist.to_csv(AGG_DIR / 'kpi_payment_methods.csv', index=False)
 
-# ── 9. Summary ─────────────────────────────────────────────────────────────────
+# New Passenger KPI tables
+passenger_demographics.to_csv(AGG_DIR / 'kpi_passenger_demographics.csv', index=False)
+frequent_flyers.to_csv(AGG_DIR / 'kpi_frequent_flyers.csv', index=False)
+airline_pax_demographics.to_csv(AGG_DIR / 'kpi_airline_passenger_demographics.csv', index=False)
+
+# ── 9. Generate Visualizations ────────────────────────────────────────────────
+sns.set_theme(style='whitegrid')
+
+# Viz 1: Passenger Demographics Breakdown (Gender + Age Group)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+gender_counts = pax_masked['gender'].value_counts()
+ax1.pie(gender_counts, labels=gender_counts.index, autopct='%1.1f%%', colors=['#4C72B0', '#DD8452'], startangle=90)
+ax1.set_title('Passenger Gender Distribution', fontsize=13, fontweight='bold')
+
+age_order = ['Under 18', '18-30', '31-45', '46-60', '60+']
+age_counts = pax_masked['age_group'].value_counts().reindex(age_order)
+sns.barplot(x=age_counts.index, y=age_counts.values, ax=ax2, hue=age_counts.index, palette='Blues_r', legend=False)
+ax2.set_title('Passenger Age Group Distribution', fontsize=13, fontweight='bold')
+ax2.set_xlabel('Age Group')
+ax2.set_ylabel('Number of Passengers')
+plt.tight_layout()
+fig.savefig(CLEANED_DIR / 'viz_passenger_demographics.png', dpi=150)
+plt.close(fig)
+
+# Viz 2: Passenger Revenue by Age Group & Gender
+fig, ax = plt.subplots(figsize=(10, 5))
+revenue_pax = passenger_demographics.copy()
+sns.barplot(
+    data=revenue_pax,
+    x='age_group',
+    y='total_revenue',
+    hue='gender',
+    order=age_order,
+    palette={'M': '#4C72B0', 'F': '#DD8452'},
+    ax=ax
+)
+ax.set_title('Total Booking Revenue by Age Group & Gender', fontsize=13, fontweight='bold')
+ax.set_xlabel('Age Group')
+ax.set_ylabel('Total Revenue (INR)')
+plt.tight_layout()
+fig.savefig(CLEANED_DIR / 'viz_passenger_revenue_by_age.png', dpi=150)
+plt.close(fig)
+
+# ── 10. Summary ────────────────────────────────────────────────────────────────
 print('=' * 60)
 print('     ASG AIRLINES - PIPELINE EXECUTION SUMMARY')
 print('=' * 60)
 print(f'  Raw flights          : {len(raw["flights"])} rows')
 print(f'  Clean flights        : {len(flights)} rows')
+print(f'  Raw passengers       : {len(raw["passengers"])} rows')
+print(f'  Clean passengers     : {len(passengers)} rows (with age_group & masked PII)')
+print(f'  Raw bookings         : {len(raw["bookings"])} rows')
+print(f'  Clean bookings       : {len(bookings)} rows')
+print(f'  Clean payments       : {len(payments)} rows')
 print(f'  Overnight flights    : {flights["is_overnight"].sum()}')
 print(f'  Delayed flights      : {flights["is_delayed"].sum()}')
 print(f'  Delay rate           : {flights["is_delayed"].mean()*100:.1f}%')
 print(f'  Avg duration         : {flights["duration_mins"].mean():.1f} mins')
 print(f'  Unique routes        : {flights["route"].nunique()}')
-print(f'  Master dataset       : {master.shape[0]} rows x {master.shape[1]} cols')
+print(f'  Master dataset       : {master.shape[0]} rows x {master.shape[1]} cols (ALL 4 TABLES JOINED)')
 print()
 print('  CLEANED FILES:')
 for f in sorted(CLEANED_DIR.iterdir()):
-    size_kb = f.stat().st_size // 1024
-    print(f'    {f.name:<45} {size_kb} KB')
+    if f.is_file():
+        size_kb = f.stat().st_size // 1024
+        print(f'    {f.name:<45} {size_kb} KB')
 print()
-print('  KPI FILES:')
+print('  KPI FILES (Total 12 tables):')
 for f in sorted(AGG_DIR.iterdir()):
-    size_kb = f.stat().st_size // 1024
-    print(f'    {f.name:<45} {size_kb} KB')
+    if f.is_file():
+        size_kb = f.stat().st_size // 1024
+        print(f'    {f.name:<45} {size_kb} KB')
 print('=' * 60)
-print('  Pipeline completed successfully!')
+print('  Pipeline completed successfully! All tables 100% utilized.')
 print('=' * 60)

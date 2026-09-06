@@ -2,7 +2,6 @@ airline,avg_duration_mins,min_duration_mins,max_duration_mins,flight_count
 Vistara,198.75,98.0,278.0,4
 Air India,172.0,62.0,226.0,8
 SpiceJet,169.67,87.0,263.0,6
-NAN,169.54,33.0,291.0,39
 INDIGO,167.7,30.0,300.0,249
 SPICEJET,163.61,32.0,300.0,235
 AIR INDIA,163.15,35.0,299.0,233
