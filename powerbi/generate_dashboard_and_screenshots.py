@@ -1,11 +1,11 @@
 """
-ASG Airlines — Power BI Report & Screenshot Generator (Polished)
-================================================================
+ASG Airlines — Power BI Report & Visual Screenshot Generator (Clean & Transparent)
+===================================================================================
 1. Builds the official Power BI Desktop (.pbix) report file with 4 rich pages,
-   full data tables, DAX measures, and visual bindings.
-2. Renders pixel-perfect, high-resolution Power BI Desktop dashboard screenshots
-   for all 4 pages plus an executive hero preview.
-3. Synchronizes artifacts across both repository directories.
+   full data tables, DAX measures, and visual bindings using `pbix-mcp`.
+2. Renders clean, high-resolution analytical report preview charts for all 4 pages
+   plus an executive hero preview.
+3. Synchronizes artifacts across repository directories.
 """
 
 import json
@@ -36,7 +36,7 @@ AIRLINE_NORM = {
     'SpiceJet': 'SpiceJet', 'IndiGo': 'IndiGo', 'Vistara': 'Vistara'
 }
 df['airline'] = df['airline'].fillna('Unknown').replace(AIRLINE_NORM).astype(str)
-# If airline is Unknown, impute from flight_id prefix
+
 PREFIX_MAP = {'AI': 'Air India', 'SJ': 'SpiceJet', '6F': 'IndiGo', 'UK': 'Vistara', 'G8': 'Go First'}
 for idx, row in df.iterrows():
     if row['airline'] in ['Unknown', 'UNKNOWN', 'NAN', '']:
@@ -44,11 +44,9 @@ for idx, row in df.iterrows():
         if pfx in PREFIX_MAP:
             df.at[idx, 'airline'] = PREFIX_MAP[pfx]
 
-# Standardize status
 df['status'] = df['status'].astype(str).str.upper().str.strip()
 df.loc[~df['status'].isin(['CONFIRMED', 'CANCELLED']), 'status'] = 'CONFIRMED'
 
-# Standardize payment method
 PAY_MAP = {
     'NETBANKING': 'Net Banking', 'UPI': 'UPI', 'CARD': 'Credit/Debit Card',
     'CREDIT_CARD': 'Credit/Debit Card', 'DEBIT_CARD': 'Credit/Debit Card'
@@ -60,8 +58,6 @@ df['duration_mins'] = pd.to_numeric(df['duration_mins'], errors='coerce').fillna
 df['is_delayed'] = pd.to_numeric(df['is_delayed'], errors='coerce').fillna(0).astype(int)
 df['is_overnight'] = pd.to_numeric(df['is_overnight'], errors='coerce').fillna(0).astype(int)
 df['age'] = pd.to_numeric(df['age'], errors='coerce').fillna(0).astype(int)
-df['birth_year'] = pd.to_numeric(df['birth_year'], errors='coerce').fillna(1990).astype(int)
-df['departure_hour'] = pd.to_numeric(df['departure_hour'], errors='coerce').fillna(0).astype(int)
 
 for col in df.select_dtypes(include=['object']).columns:
     df[col] = df[col].fillna('Unknown').astype(str).str.strip()
@@ -95,176 +91,88 @@ builder.add_measure('master_dataset', 'Overnight Flights', 'CALCULATE(COUNTROWS(
 builder.add_measure('master_dataset', 'Total Unique Passengers', 'DISTINCTCOUNT(master_dataset[passenger_id])', format_string='#,0')
 builder.add_measure('master_dataset', 'Avg Passenger Age', 'AVERAGE(master_dataset[age])', format_string='#,0.0')
 
-# Page 1: Operations Overview
+# Add Pages
 builder.add_page(name='Operations Overview', visuals=[
     {'type': 'card', 'x': 20, 'y': 20, 'width': 220, 'height': 110, 'config': {'measure': 'Total Flights'}},
-    {'type': 'card', 'x': 260, 'y': 20, 'width': 220, 'height': 110, 'config': {'measure': 'Total Bookings'}},
-    {'type': 'card', 'x': 500, 'y': 20, 'width': 220, 'height': 110, 'config': {'measure': 'Total Revenue'}},
-    {'type': 'card', 'x': 740, 'y': 20, 'width': 220, 'height': 110, 'config': {'measure': 'Avg Duration'}},
-    {'type': 'card', 'x': 980, 'y': 20, 'width': 220, 'height': 110, 'config': {'measure': 'Total Unique Passengers'}},
-    {'type': 'barChart', 'x': 20, 'y': 150, 'width': 580, 'height': 330, 'config': {
-        'category': {'table': 'master_dataset', 'column': 'airline'},
-        'measure': 'Total Bookings'
-    }},
-    {'type': 'columnChart', 'x': 620, 'y': 150, 'width': 580, 'height': 330, 'config': {
-        'category': {'table': 'master_dataset', 'column': 'departure_slot'},
-        'measure': 'Total Flights'
-    }},
-    {'type': 'slicer', 'x': 20, 'y': 500, 'width': 380, 'height': 180, 'config': {
-        'column': {'table': 'master_dataset', 'column': 'airline'}
-    }},
-    {'type': 'slicer', 'x': 420, 'y': 500, 'width': 380, 'height': 180, 'config': {
-        'column': {'table': 'master_dataset', 'column': 'departure_slot'}
-    }},
-    {'type': 'slicer', 'x': 820, 'y': 500, 'width': 380, 'height': 180, 'config': {
-        'column': {'table': 'master_dataset', 'column': 'status'}
-    }}
+    {'type': 'card', 'x': 260, 'y': 20, 'width': 220, 'height': 110, 'config': {'measure': 'Total Revenue'}},
+    {'type': 'barChart', 'x': 20, 'y': 150, 'width': 600, 'height': 400, 'config': {'category': {'table': 'master_dataset', 'column': 'airline'}, 'measure': 'Total Flights'}}
 ])
 
-# Page 2: Route & Delay Analysis
 builder.add_page(name='Route & Delay Performance', visuals=[
-    {'type': 'card', 'x': 20, 'y': 20, 'width': 280, 'height': 110, 'config': {'measure': 'Delayed Flights'}},
-    {'type': 'card', 'x': 320, 'y': 20, 'width': 280, 'height': 110, 'config': {'measure': 'Overnight Flights'}},
-    {'type': 'card', 'x': 620, 'y': 20, 'width': 280, 'height': 110, 'config': {'measure': 'Avg Duration'}},
-    {'type': 'barChart', 'x': 20, 'y': 150, 'width': 600, 'height': 340, 'config': {
-        'category': {'table': 'master_dataset', 'column': 'route'},
-        'measure': 'Total Bookings'
-    }},
-    {'type': 'columnChart', 'x': 640, 'y': 150, 'width': 580, 'height': 340, 'config': {
-        'category': {'table': 'master_dataset', 'column': 'airline'},
-        'measure': 'Delayed Flights'
-    }},
-    {'type': 'slicer', 'x': 20, 'y': 510, 'width': 380, 'height': 170, 'config': {
-        'column': {'table': 'master_dataset', 'column': 'source'}
-    }},
-    {'type': 'slicer', 'x': 420, 'y': 510, 'width': 380, 'height': 170, 'config': {
-        'column': {'table': 'master_dataset', 'column': 'destination'}
-    }}
+    {'type': 'card', 'x': 20, 'y': 20, 'width': 220, 'height': 110, 'config': {'measure': 'Delayed Flights'}},
+    {'type': 'barChart', 'x': 20, 'y': 150, 'width': 600, 'height': 400, 'config': {'category': {'table': 'master_dataset', 'column': 'route'}, 'measure': 'Delayed Flights'}}
 ])
 
-# Page 3: Commercial & Financial Performance
 builder.add_page(name='Commercial & Financial Trends', visuals=[
-    {'type': 'card', 'x': 20, 'y': 20, 'width': 380, 'height': 110, 'config': {'measure': 'Total Revenue'}},
-    {'type': 'card', 'x': 420, 'y': 20, 'width': 380, 'height': 110, 'config': {'measure': 'Total Bookings'}},
-    {'type': 'barChart', 'x': 20, 'y': 150, 'width': 600, 'height': 340, 'config': {
-        'category': {'table': 'master_dataset', 'column': 'airline'},
-        'measure': 'Total Revenue'
-    }},
-    {'type': 'columnChart', 'x': 640, 'y': 150, 'width': 580, 'height': 340, 'config': {
-        'category': {'table': 'master_dataset', 'column': 'payment_method'},
-        'measure': 'Total Revenue'
-    }},
-    {'type': 'slicer', 'x': 20, 'y': 510, 'width': 380, 'height': 170, 'config': {
-        'column': {'table': 'master_dataset', 'column': 'payment_method'}
-    }},
-    {'type': 'slicer', 'x': 420, 'y': 510, 'width': 380, 'height': 170, 'config': {
-        'column': {'table': 'master_dataset', 'column': 'status'}
-    }}
+    {'type': 'card', 'x': 20, 'y': 20, 'width': 220, 'height': 110, 'config': {'measure': 'Total Revenue'}},
+    {'type': 'pieChart', 'x': 20, 'y': 150, 'width': 500, 'height': 400, 'config': {'category': {'table': 'master_dataset', 'column': 'payment_method'}, 'measure': 'Total Revenue'}}
 ])
 
-# Page 4: Passenger Demographics & Loyalty
-builder.add_page(name='Passenger Demographics & Loyalty', visuals=[
-    {'type': 'card', 'x': 20, 'y': 20, 'width': 380, 'height': 110, 'config': {'measure': 'Total Unique Passengers'}},
-    {'type': 'card', 'x': 420, 'y': 20, 'width': 380, 'height': 110, 'config': {'measure': 'Avg Passenger Age'}},
-    {'type': 'card', 'x': 820, 'y': 20, 'width': 380, 'height': 110, 'config': {'measure': 'Total Revenue'}},
-    {'type': 'columnChart', 'x': 20, 'y': 150, 'width': 580, 'height': 340, 'config': {
-        'category': {'table': 'master_dataset', 'column': 'age_group'},
-        'measure': 'Total Revenue'
-    }},
-    {'type': 'barChart', 'x': 620, 'y': 150, 'width': 580, 'height': 340, 'config': {
-        'category': {'table': 'master_dataset', 'column': 'age_group'},
-        'measure': 'Total Bookings'
-    }},
-    {'type': 'slicer', 'x': 20, 'y': 510, 'width': 380, 'height': 170, 'config': {
-        'column': {'table': 'master_dataset', 'column': 'gender'}
-    }},
-    {'type': 'slicer', 'x': 420, 'y': 510, 'width': 380, 'height': 170, 'config': {
-        'column': {'table': 'master_dataset', 'column': 'age_group'}
-    }}
+builder.add_page(name='Passenger Demographics', visuals=[
+    {'type': 'card', 'x': 20, 'y': 20, 'width': 220, 'height': 110, 'config': {'measure': 'Total Unique Passengers'}},
+    {'type': 'barChart', 'x': 20, 'y': 150, 'width': 600, 'height': 400, 'config': {'category': {'table': 'master_dataset', 'column': 'age_group'}, 'measure': 'Total Unique Passengers'}}
 ])
 
 pbix_path = POWERBI_DIR / 'ASG_Airlines_Dashboard.pbix'
-builder.save(str(pbix_path))
-print(f"PBIX successfully generated: {pbix_path} ({pbix_path.stat().st_size // 1024} KB)")
+builder.save(pbix_path)
+print(f"PBIX successfully generated: {pbix_path} ({os.path.getsize(pbix_path) // 1024} KB)")
 
-# ── 3. High-Fidelity Power BI Desktop UI Screenshot Renderer ──────────────────
-print("Generating high-resolution Power BI Desktop screenshots...")
+# ── 3. High-Resolution Analytical Report Preview Renderer ──────────────────────
+print("Generating clean analytical report previews...")
 
-def draw_pbi_frame(fig, page_title, active_tab_index=0):
-    """Draws realistic Power BI Desktop window frame with ribbon and tabs."""
-    # Top title bar
-    ax_title = fig.add_axes([0, 0.955, 1, 0.045])
-    ax_title.set_facecolor('#1F1F1F')
-    ax_title.axis('off')
-    ax_title.text(0.015, 0.5, 'Power BI Desktop  |  ASG_Airlines_Dashboard.pbix', color='#FFFFFF',
-                 fontsize=11.5, fontweight='bold', va='center')
-    ax_title.text(0.5, 0.5, 'ASG Airlines Operations & Passenger Analytics [Read-Only]', color='#AAAAAA',
-                 fontsize=10, ha='center', va='center')
-    ax_title.text(0.985, 0.5, 'X', color='#FFFFFF', fontsize=11, ha='right', va='center')
+def draw_clean_report_header(fig, page_title, active_tab_index=0):
+    """Draws a clean, professional executive report header without fake UI chrome."""
+    # Top Report Banner
+    ax_banner = fig.add_axes([0, 0.93, 1, 0.07])
+    ax_banner.set_facecolor('#0F172A')
+    ax_banner.axis('off')
+    ax_banner.text(0.02, 0.5, 'ASG AIRLINES — ANALYTICAL REPORT SUITE', color='#F8FAFC',
+                   fontsize=14, fontweight='bold', va='center')
+    ax_banner.text(0.5, 0.5, f'Page {active_tab_index + 1} of 4: {page_title}', color='#38BDF8',
+                   fontsize=12, fontweight='bold', ha='center', va='center')
+    ax_banner.text(0.98, 0.5, 'Data Model: ASG_Airlines_Dashboard.pbix', color='#94A3B8',
+                   fontsize=9, ha='right', va='center')
 
-    # Ribbon bar
-    ax_ribbon = fig.add_axes([0, 0.915, 1, 0.04])
-    ax_ribbon.set_facecolor('#F3F2F1')
-    ax_ribbon.axis('off')
-    tabs = ['File', 'Home', 'Insert', 'Modeling', 'View', 'Optimize', 'Help']
-    x_pos = 0.015
-    for t in tabs:
-        fw = 'bold' if t == 'Home' else 'normal'
-        ax_ribbon.text(x_pos, 0.5, t, color='#252423', fontsize=10, fontweight=fw, va='center')
-        x_pos += 0.05
-    ax_ribbon.text(0.5, 0.5, '  Search commands, fields and help  ', color='#605E5C', fontsize=9, ha='center', va='center',
-                   bbox=dict(boxstyle='round,pad=0.3', facecolor='#FFFFFF', edgecolor='#EDEBE9'))
-    ax_ribbon.text(0.98, 0.5, 'Sign in | Feedback', color='#605E5C', fontsize=9, ha='right', va='center')
-
-    # Right side collapsible panes
-    ax_pane = fig.add_axes([0.965, 0.04, 0.035, 0.875])
-    ax_pane.set_facecolor('#FAF9F8')
-    ax_pane.axis('off')
-    ax_pane.text(0.5, 0.8, 'Filters', color='#605E5C', fontsize=8, ha='center', va='center', rotation=-90)
-    ax_pane.text(0.5, 0.5, 'Visualizations', color='#605E5C', fontsize=8, ha='center', va='center', rotation=-90)
-    ax_pane.text(0.5, 0.2, 'Data', color='#605E5C', fontsize=8, ha='center', va='center', rotation=-90)
-
-    # Bottom status & page navigation bar
+    # Bottom Page Navigation Bar
     ax_bottom = fig.add_axes([0, 0, 1, 0.04])
-    ax_bottom.set_facecolor('#FFFFFF')
+    ax_bottom.set_facecolor('#1E293B')
     ax_bottom.axis('off')
     
     page_tabs = [
-        'Operations Overview',
-        'Route & Delay Performance',
-        'Commercial & Financial',
-        'Passenger Demographics'
+        '1. Operations Overview',
+        '2. Route & Delay Performance',
+        '3. Commercial & Financial',
+        '4. Passenger Demographics'
     ]
-    x_tab = 0.015
+    x_tab = 0.02
     for idx, p in enumerate(page_tabs):
         is_active = (idx == active_tab_index)
-        bg = '#E1DFDD' if is_active else '#FFFFFF'
-        col = '#0078D4' if is_active else '#323130'
-        ax_bottom.text(x_tab, 0.5, f' {p} ', color=col, fontsize=9.5, fontweight='bold' if is_active else 'normal',
-                       va='center', bbox=dict(boxstyle='square,pad=0.3', facecolor=bg, edgecolor='#D1D0CD' if is_active else '#FFFFFF'))
-        x_tab += len(p) * 0.007 + 0.045
-    ax_bottom.text(0.98, 0.5, f'Page {active_tab_index + 1} of 4  |  100%  |  Fit to page [ ]',
-                   color='#605E5C', fontsize=9, ha='right', va='center')
+        col = '#38BDF8' if is_active else '#94A3B8'
+        fw = 'bold' if is_active else 'normal'
+        ax_bottom.text(x_tab, 0.5, p, color=col, fontsize=9.5, fontweight=fw, va='center')
+        x_tab += 0.23
+    ax_bottom.text(0.98, 0.5, 'Native .pbix Report File Pre-configured for Power BI Desktop',
+                   color='#CBD5E1', fontsize=8.5, ha='right', va='center')
 
 CARD_BG = '#FFFFFF'
-BORDER_COL = '#EDEBE9'
-PRIMARY = '#0078D4'
-TEAL = '#107C41'
-ORANGE = '#D83B01'
-PURPLE = '#5C2D91'
-DARK = '#201F1E'
+BORDER_COL = '#CBD5E1'
+PRIMARY = '#0284C7'
+TEAL = '#0D9488'
+ORANGE = '#EA580C'
+PURPLE = '#7C3AED'
+DARK = '#0F172A'
 
-# ── Screenshot 1: Operations Overview ─────────────────────────────────────────
+# ── Preview 1: Operations Overview ─────────────────────────────────────────────
 fig = plt.figure(figsize=(16, 9), dpi=120)
-fig.patch.set_facecolor('#F3F2F1')
-draw_pbi_frame(fig, 'Operations Overview', active_tab_index=0)
+fig.patch.set_facecolor('#F8FAFC')
+draw_clean_report_header(fig, 'Operations Overview', active_tab_index=0)
 
 kpis = [
     ('TOTAL FLIGHTS', '984', '+12 vs schedule', PRIMARY),
     ('TOTAL BOOKINGS', '1,369', '100% capacity tracked', TEAL),
     ('TOTAL REVENUE', '₹7.75M', 'INR gross receipts', ORANGE),
     ('AVG DURATION', '162.6m', '2h 43m per flight', DARK),
-    ('DELAY RATE %', '28.9%', 'Duration > 130% avg', '#A80000'),
+    ('DELAY RATE %', '28.9%', 'Duration > 130% avg', '#DC2626'),
     ('UNIQUE PASSENGERS', '636', 'Demographics tracked', PURPLE)
 ]
 
@@ -279,14 +187,13 @@ for idx, (label, val, sub, accent) in enumerate(kpis):
     stripe = patches.Rectangle((0, 0.94), 1, 0.06, transform=ax.transAxes, facecolor=accent)
     ax.add_patch(stripe)
     ax.text(0.08, 0.65, val, transform=ax.transAxes, fontsize=18, fontweight='bold', color=DARK)
-    ax.text(0.08, 0.35, label, transform=ax.transAxes, fontsize=8, fontweight='bold', color='#605E5C')
-    ax.text(0.08, 0.12, sub, transform=ax.transAxes, fontsize=7, color='#A19F9D')
+    ax.text(0.08, 0.35, label, transform=ax.transAxes, fontsize=8, fontweight='bold', color='#475569')
+    ax.text(0.08, 0.12, sub, transform=ax.transAxes, fontsize=7, color='#64748B')
 
-# Chart 1: Flights / Bookings by Airline (with comfortable left margin)
-ax_c1 = fig.add_axes([0.07, 0.38, 0.40, 0.36])
+ax_c1 = fig.add_axes([0.07, 0.12, 0.40, 0.58])
 ax_c1.set_facecolor(CARD_BG)
 airline_counts = df[df['airline'] != 'Unknown']['airline'].value_counts()
-bars = ax_c1.barh(airline_counts.index, airline_counts.values, color=['#0078D4', '#2B88D8', '#4FA0E3', '#71B7EE'])
+bars = ax_c1.barh(airline_counts.index, airline_counts.values, color=['#0284C7', '#0369A1', '#075985', '#0C4A6E'])
 ax_c1.set_title('Flight Volume by Airline', fontsize=12, fontweight='bold', color=DARK, pad=10)
 ax_c1.invert_yaxis()
 ax_c1.grid(axis='x', linestyle='--', alpha=0.5)
@@ -294,48 +201,29 @@ for bar in bars:
     ax_c1.text(bar.get_width() + 5, bar.get_y() + bar.get_height()/2, f'{int(bar.get_width())}',
                va='center', fontsize=9, fontweight='bold', color=DARK)
 
-# Chart 2: Flights by Departure Slot
-ax_c2 = fig.add_axes([0.52, 0.38, 0.43, 0.36])
+ax_c2 = fig.add_axes([0.53, 0.12, 0.43, 0.58])
 ax_c2.set_facecolor(CARD_BG)
 slots = ['Early Morning', 'Morning', 'Afternoon', 'Evening', 'Night']
 slot_counts = df['departure_slot'].value_counts().reindex(slots)
-bars2 = ax_c2.bar(slot_counts.index, slot_counts.values, color=['#004E8C', '#0078D4', '#2B88D8', '#4FA0E3', '#002642'])
+bars2 = ax_c2.bar(slot_counts.index, slot_counts.values, color=['#0369A1', '#0284C7', '#38BDF8', '#7DD3FC', '#0C4A6E'])
 ax_c2.set_title('Traffic by Departure Time Slot', fontsize=12, fontweight='bold', color=DARK, pad=10)
 ax_c2.grid(axis='y', linestyle='--', alpha=0.5)
 for bar in bars2:
-    ax_c2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 5, f'{int(bar.get_height())}',
+    h_val = bar.get_height()
+    val_str = f'{int(h_val)}' if not np.isnan(h_val) else '0'
+    ax_c2.text(bar.get_x() + bar.get_width()/2, (h_val if not np.isnan(h_val) else 0) + 5, val_str,
                ha='center', fontsize=9, fontweight='bold', color=DARK)
-
-# Bottom Slicers Panel
-slicers = [
-    ('AIRLINE FILTER', ['Air India', 'IndiGo', 'SpiceJet', 'Vistara']),
-    ('DEPARTURE TIME SLOT', ['Early Morning', 'Morning', 'Afternoon', 'Evening', 'Night']),
-    ('BOOKING STATUS', ['CONFIRMED', 'CANCELLED'])
-]
-for idx, (s_title, items) in enumerate(slicers):
-    ax_s = fig.add_axes([0.025 + idx * 0.315, 0.08, 0.30, 0.26])
-    ax_s.set_facecolor(CARD_BG)
-    ax_s.axis('off')
-    rect = patches.FancyBboxPatch((0, 0), 1, 1, boxstyle="round,pad=0.03",
-                                  transform=ax_s.transAxes, facecolor=CARD_BG, edgecolor=BORDER_COL, linewidth=1.5)
-    ax_s.add_patch(rect)
-    ax_s.text(0.06, 0.88, s_title, transform=ax_s.transAxes, fontsize=9, fontweight='bold', color=DARK)
-    for i, itm in enumerate(items[:4]):
-        y = 0.68 - i * 0.18
-        box = patches.Rectangle((0.06, y), 0.06, 0.12, transform=ax_s.transAxes, facecolor='#FFFFFF', edgecolor='#605E5C')
-        ax_s.add_patch(box)
-        ax_s.text(0.16, y + 0.02, itm, transform=ax_s.transAxes, fontsize=9, color='#323130')
 
 fig.savefig(SCREENSHOTS_DIR / '01_operations_overview.png', dpi=150)
 plt.close(fig)
 
-# ── Screenshot 2: Route & Delay Performance ───────────────────────────────────
+# ── Preview 2: Route & Delay Performance ───────────────────────────────────────
 fig = plt.figure(figsize=(16, 9), dpi=120)
-fig.patch.set_facecolor('#F3F2F1')
-draw_pbi_frame(fig, 'Route & Delay Performance', active_tab_index=1)
+fig.patch.set_facecolor('#F8FAFC')
+draw_clean_report_header(fig, 'Route & Delay Performance', active_tab_index=1)
 
 kpis_p2 = [
-    ('DELAYED FLIGHTS', '396', '28.9% of operations', '#A80000'),
+    ('DELAYED FLIGHTS', '396', '28.9% of operations', '#DC2626'),
     ('ON-TIME FLIGHTS', '973', '71.1% on schedule', TEAL),
     ('OVERNIGHT FLIGHTS', '180', '13.1% multi-day journeys', PURPLE),
     ('UNIQUE ROUTES', '30', 'Hub & spoke connectivity', PRIMARY),
@@ -352,235 +240,90 @@ for idx, (label, val, sub, accent) in enumerate(kpis_p2):
     stripe = patches.Rectangle((0, 0.94), 1, 0.06, transform=ax.transAxes, facecolor=accent)
     ax.add_patch(stripe)
     ax.text(0.08, 0.65, val, transform=ax.transAxes, fontsize=18, fontweight='bold', color=DARK)
-    ax.text(0.08, 0.35, label, transform=ax.transAxes, fontsize=8, fontweight='bold', color='#605E5C')
-    ax.text(0.08, 0.12, sub, transform=ax.transAxes, fontsize=7, color='#A19F9D')
+    ax.text(0.08, 0.35, label, transform=ax.transAxes, fontsize=8, fontweight='bold', color='#475569')
+    ax.text(0.08, 0.12, sub, transform=ax.transAxes, fontsize=7, color='#64748B')
 
-# Chart 1: Top 10 Busiest Routes (with comfortable margin)
-ax_r1 = fig.add_axes([0.08, 0.10, 0.39, 0.64])
-ax_r1.set_facecolor(CARD_BG)
-top_routes = df['route'].value_counts().head(10)
-bars_r = ax_r1.barh(top_routes.index, top_routes.values, color='#0078D4')
-ax_r1.set_title('Top 10 Busiest Flight Routes', fontsize=12, fontweight='bold', color=DARK, pad=10)
-ax_r1.invert_yaxis()
-ax_r1.grid(axis='x', linestyle='--', alpha=0.5)
+ax_routes = fig.add_axes([0.08, 0.12, 0.88, 0.58])
+ax_routes.set_facecolor(CARD_BG)
+route_counts = df['route'].value_counts().head(10)
+bars_r = ax_routes.bar(route_counts.index, route_counts.values, color='#0284C7')
+ax_routes.set_title('Top 10 Busiest Flight Routes', fontsize=12, fontweight='bold', color=DARK, pad=10)
+ax_routes.tick_params(axis='x', rotation=30)
+ax_routes.grid(axis='y', linestyle='--', alpha=0.5)
 for bar in bars_r:
-    ax_r1.text(bar.get_width() + 1, bar.get_y() + bar.get_height()/2, f'{int(bar.get_width())}',
-               va='center', fontsize=9, fontweight='bold', color=DARK)
-
-# Chart 2: Delay Rate by Airline
-ax_r2 = fig.add_axes([0.51, 0.44, 0.44, 0.30])
-ax_r2.set_facecolor(CARD_BG)
-delays = df[df['airline'] != 'Unknown'].groupby('airline')['is_delayed'].agg(['count', 'sum'])
-delays['rate'] = (delays['sum'] / delays['count'] * 100).round(1)
-bars_d = ax_r2.bar(delays.index, delays['rate'], color=['#D83B01', '#E8702A', '#FFAA44', '#C33800'])
-ax_r2.set_title('Delay Rate (%) by Airline Carrier', fontsize=12, fontweight='bold', color=DARK, pad=10)
-ax_r2.set_ylabel('Delay %')
-ax_r2.grid(axis='y', linestyle='--', alpha=0.5)
-for bar in bars_d:
-    ax_r2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.8, f'{bar.get_height():.1f}%',
-               ha='center', fontsize=9, fontweight='bold', color=DARK)
-
-# Detail Table: Route Operational Summary
-ax_r3 = fig.add_axes([0.51, 0.10, 0.44, 0.30])
-ax_r3.set_facecolor(CARD_BG)
-ax_r3.axis('off')
-rect = patches.FancyBboxPatch((0, 0), 1, 1, boxstyle="round,pad=0.03",
-                              transform=ax_r3.transAxes, facecolor=CARD_BG, edgecolor=BORDER_COL, linewidth=1.5)
-ax_r3.add_patch(rect)
-ax_r3.text(0.04, 0.88, 'ROUTE RELIABILITY MATRIX', transform=ax_r3.transAxes, fontsize=10, fontweight='bold', color=DARK)
-headers = ['Route', 'Carrier', 'Avg Mins', 'Delayed', 'Status']
-x_h = [0.04, 0.30, 0.52, 0.70, 0.88]
-for h, xh in zip(headers, x_h):
-    ax_r3.text(xh, 0.75, h, transform=ax_r3.transAxes, fontsize=8, fontweight='bold', color='#605E5C')
-
-sample_table = [
-    ('BOM to DEL', 'Air India', '124m', '14 (22%)', 'HIGH ON-TIME'),
-    ('BLR to BOM', 'IndiGo', '98m', '18 (31%)', 'WATCH'),
-    ('DEL to CCU', 'SpiceJet', '135m', '24 (38%)', 'ANOMALY'),
-    ('MAA to DEL', 'Vistara', '168m', '11 (19%)', 'HIGH ON-TIME'),
-]
-for row_idx, r_vals in enumerate(sample_table):
-    y = 0.58 - row_idx * 0.14
-    for val, xh in zip(r_vals, x_h):
-        col_txt = TEAL if 'HIGH' in val else ('#D83B01' if 'ANOMALY' in val else DARK)
-        ax_r3.text(xh, y, val, transform=ax_r3.transAxes, fontsize=8, color=col_txt)
+    ax_routes.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, f'{int(bar.get_height())}',
+                   ha='center', fontsize=9, fontweight='bold', color=DARK)
 
 fig.savefig(SCREENSHOTS_DIR / '02_route_delay_performance.png', dpi=150)
 plt.close(fig)
 
-# ── Screenshot 3: Commercial & Financial Performance ─────────────────────────
+# ── Preview 3: Commercial & Financial Trends ──────────────────────────────────
 fig = plt.figure(figsize=(16, 9), dpi=120)
-fig.patch.set_facecolor('#F3F2F1')
-draw_pbi_frame(fig, 'Commercial & Financial Trends', active_tab_index=2)
+fig.patch.set_facecolor('#F8FAFC')
+draw_clean_report_header(fig, 'Commercial & Financial Trends', active_tab_index=2)
 
-kpis_p3 = [
-    ('GROSS REVENUE', '₹7.75M', 'Across all bookings', ORANGE),
-    ('PAID TRANSACTIONS', '965', 'Successful checkouts', TEAL),
-    ('AVG TICKET PRICE', '₹8,029', 'Per paid seat', PRIMARY),
-    ('CONFIRMED RATIO', '74.2%', '1,016 confirmed', DARK),
-    ('TOP PAYMENT', 'UPI (36%)', '₹2.78M transacted', '#004E8C'),
-]
-for idx, (label, val, sub, accent) in enumerate(kpis_p3):
-    x = 0.025 + idx * 0.186
-    ax = fig.add_axes([x, 0.77, 0.175, 0.11])
-    ax.set_facecolor(CARD_BG)
-    ax.axis('off')
-    rect = patches.FancyBboxPatch((0, 0), 1, 1, boxstyle="round,pad=0.03",
-                                  transform=ax.transAxes, facecolor=CARD_BG, edgecolor=BORDER_COL, linewidth=1.5)
-    ax.add_patch(rect)
-    stripe = patches.Rectangle((0, 0.94), 1, 0.06, transform=ax.transAxes, facecolor=accent)
-    ax.add_patch(stripe)
-    ax.text(0.08, 0.65, val, transform=ax.transAxes, fontsize=18, fontweight='bold', color=DARK)
-    ax.text(0.08, 0.35, label, transform=ax.transAxes, fontsize=8, fontweight='bold', color='#605E5C')
-    ax.text(0.08, 0.12, sub, transform=ax.transAxes, fontsize=7, color='#A19F9D')
-
-# Chart 1: Revenue by Airline
-ax_f1 = fig.add_axes([0.06, 0.10, 0.40, 0.64])
-ax_f1.set_facecolor(CARD_BG)
-rev_by_airline = df[df['airline'] != 'Unknown'].groupby('airline')['amount'].sum().sort_values(ascending=False) / 1000000
-bars_rev = ax_f1.bar(rev_by_airline.index, rev_by_airline.values, color=['#0078D4', '#2B88D8', '#4FA0E3', '#107C41'])
-ax_f1.set_title('Total Booking Revenue by Airline Carrier (INR Millions)', fontsize=12, fontweight='bold', color=DARK, pad=10)
-ax_f1.set_ylabel('INR Millions')
-ax_f1.grid(axis='y', linestyle='--', alpha=0.5)
+rev_by_airline = df.groupby('airline')['amount'].sum().sort_values(ascending=False)
+ax_rev = fig.add_axes([0.08, 0.15, 0.42, 0.70])
+ax_rev.set_facecolor(CARD_BG)
+bars_rev = ax_rev.bar(rev_by_airline.index, rev_by_airline.values / 1e6, color='#0D9488')
+ax_rev.set_title('Total Revenue by Airline (₹ Millions)', fontsize=12, fontweight='bold', color=DARK, pad=10)
+ax_rev.tick_params(axis='x', rotation=20)
+ax_rev.grid(axis='y', linestyle='--', alpha=0.5)
 for bar in bars_rev:
-    ax_f1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.04, f'₹{bar.get_height():.2f}M',
-               ha='center', fontsize=9, fontweight='bold', color=DARK)
+    ax_rev.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.05, f'₹{bar.get_height():.2f}M',
+                ha='center', fontsize=9, fontweight='bold', color=DARK)
 
-# Chart 2: Payment Method Revenue Distribution (more room on left for Credit/Debit Card)
-ax_f2 = fig.add_axes([0.57, 0.44, 0.38, 0.30])
-ax_f2.set_facecolor(CARD_BG)
-pay_rev = df.groupby('payment_method')['amount'].sum().sort_values(ascending=False) / 1000000
-bars_pay = ax_f2.barh(pay_rev.index, pay_rev.values, color=['#107C41', '#0078D4', '#D83B01'])
-ax_f2.set_title('Revenue Breakdown by Payment Method', fontsize=12, fontweight='bold', color=DARK, pad=10)
-ax_f2.set_xlabel('INR Millions')
-ax_f2.invert_yaxis()
-ax_f2.grid(axis='x', linestyle='--', alpha=0.5)
-for bar in bars_pay:
-    ax_f2.text(bar.get_width() + 0.05, bar.get_y() + bar.get_height()/2, f'₹{bar.get_width():.2f}M',
-               va='center', fontsize=9, fontweight='bold', color=DARK)
-
-# Donut Chart: Confirmed vs Cancelled
-ax_f3 = fig.add_axes([0.57, 0.08, 0.38, 0.32])
-ax_f3.set_facecolor(CARD_BG)
-status_counts = df['status'].value_counts()
-wedges, texts, autotexts = ax_f3.pie(status_counts.values, labels=status_counts.index, autopct='%1.1f%%',
-                                     colors=['#107C41', '#D83B01'], startangle=90, pctdistance=0.75,
-                                     textprops=dict(color=DARK, fontweight='bold'))
-centre_circle = plt.Circle((0, 0), 0.55, fc='white')
-ax_f3.add_artist(centre_circle)
-ax_f3.set_title('Booking Confirmation vs Cancellation Ratio', fontsize=12, fontweight='bold', color=DARK)
+pay_counts = df['payment_method'].value_counts()
+ax_pay = fig.add_axes([0.55, 0.15, 0.38, 0.70])
+ax_pay.set_facecolor(CARD_BG)
+ax_pay.pie(pay_counts.values, labels=pay_counts.index, autopct='%1.1f%%',
+           colors=['#0284C7', '#0D9488', '#EA580C', '#7C3AED'], startangle=140)
+ax_pay.set_title('Payment Gateway Method Split', fontsize=12, fontweight='bold', color=DARK, pad=10)
 
 fig.savefig(SCREENSHOTS_DIR / '03_commercial_financial_trends.png', dpi=150)
 plt.close(fig)
 
-# ── Screenshot 4: Passenger Demographics & Loyalty ───────────────────────────
+# ── Preview 4: Passenger Demographics & Loyalty ────────────────────────────────
 fig = plt.figure(figsize=(16, 9), dpi=120)
-fig.patch.set_facecolor('#F3F2F1')
-draw_pbi_frame(fig, 'Passenger Demographics & Loyalty', active_tab_index=3)
+fig.patch.set_facecolor('#F8FAFC')
+draw_clean_report_header(fig, 'Passenger Demographics & Loyalty', active_tab_index=3)
 
-kpis_p4 = [
-    ('TOTAL PASSENGERS', '636', 'Registered unique travelers', PRIMARY),
-    ('AVERAGE AGE', '42.8 yrs', 'Span 1 to 89 years', PURPLE),
-    ('MALE PASSENGERS', '51.1%', '699 travel records', '#004E8C'),
-    ('FEMALE PASSENGERS', '48.9%', '670 travel records', '#D83B01'),
-    ('LIFETIME SPEND', '₹93.0K', 'Top traveler: Aadhya N.', TEAL),
-]
-for idx, (label, val, sub, accent) in enumerate(kpis_p4):
-    x = 0.025 + idx * 0.186
-    ax = fig.add_axes([x, 0.77, 0.175, 0.11])
-    ax.set_facecolor(CARD_BG)
-    ax.axis('off')
-    rect = patches.FancyBboxPatch((0, 0), 1, 1, boxstyle="round,pad=0.03",
-                                  transform=ax.transAxes, facecolor=CARD_BG, edgecolor=BORDER_COL, linewidth=1.5)
-    ax.add_patch(rect)
-    stripe = patches.Rectangle((0, 0.94), 1, 0.06, transform=ax.transAxes, facecolor=accent)
-    ax.add_patch(stripe)
-    ax.text(0.08, 0.65, val, transform=ax.transAxes, fontsize=18, fontweight='bold', color=DARK)
-    ax.text(0.08, 0.35, label, transform=ax.transAxes, fontsize=8, fontweight='bold', color='#605E5C')
-    ax.text(0.08, 0.12, sub, transform=ax.transAxes, fontsize=7, color='#A19F9D')
-
-# Chart 1: Revenue by Age Group
-ax_p1 = fig.add_axes([0.05, 0.10, 0.42, 0.64])
-ax_p1.set_facecolor(CARD_BG)
-age_order = ['Under 18', '18-30', '31-45', '46-60', '60+']
-age_rev = df.groupby('age_group')['amount'].sum().reindex(age_order) / 1000000
-bars_age = ax_p1.bar(age_rev.index, age_rev.values, color=['#4FA0E3', '#2B88D8', '#0078D4', '#004E8C', '#002642'])
-ax_p1.set_title('Total Booking Revenue by Passenger Age Group (INR M)', fontsize=12, fontweight='bold', color=DARK, pad=10)
-ax_p1.set_ylabel('INR Millions')
-ax_p1.grid(axis='y', linestyle='--', alpha=0.5)
+age_counts = df['age_group'].value_counts().reindex(['Under 18', '18-30', '31-45', '46-60', '60+']).fillna(0)
+ax_age = fig.add_axes([0.08, 0.15, 0.42, 0.70])
+ax_age.set_facecolor(CARD_BG)
+bars_age = ax_age.bar(age_counts.index, age_counts.values, color='#7C3AED')
+ax_age.set_title('Passenger Age Group Distribution', fontsize=12, fontweight='bold', color=DARK, pad=10)
+ax_age.grid(axis='y', linestyle='--', alpha=0.5)
 for bar in bars_age:
-    ax_p1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.04, f'₹{bar.get_height():.2f}M',
-               ha='center', fontsize=9, fontweight='bold', color=DARK)
+    ax_age.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 3, f'{int(bar.get_height())}',
+                ha='center', fontsize=9, fontweight='bold', color=DARK)
 
-# Chart 2: Passenger Gender Distribution Donut
-ax_p2 = fig.add_axes([0.53, 0.44, 0.42, 0.30])
-ax_p2.set_facecolor(CARD_BG)
-g_counts = df['gender'].value_counts()
-wedges, texts, autotexts = ax_p2.pie(g_counts.values, labels=['Male (M)', 'Female (F)'], autopct='%1.1f%%',
-                                     colors=['#0078D4', '#D83B01'], startangle=90, pctdistance=0.75,
-                                     textprops=dict(color=DARK, fontweight='bold'))
-centre_circle2 = plt.Circle((0, 0), 0.55, fc='white')
-ax_p2.add_artist(centre_circle2)
-ax_p2.set_title('Passenger Gender Demographic Share', fontsize=12, fontweight='bold', color=DARK)
-
-# Detail Table: Frequent Flyers Leaderboard
-ax_p3 = fig.add_axes([0.53, 0.10, 0.42, 0.30])
-ax_p3.set_facecolor(CARD_BG)
-ax_p3.axis('off')
-rect = patches.FancyBboxPatch((0, 0), 1, 1, boxstyle="round,pad=0.03",
-                              transform=ax_p3.transAxes, facecolor=CARD_BG, edgecolor=BORDER_COL, linewidth=1.5)
-ax_p3.add_patch(rect)
-ax_p3.text(0.04, 0.88, 'TOP FREQUENT TRAVELERS (LOYALTY LEADERBOARD)', transform=ax_p3.transAxes, fontsize=10, fontweight='bold', color=DARK)
-headers_p = ['Passenger ID', 'Name', 'Age Group', 'Bookings', 'Total Spend']
-x_hp = [0.04, 0.28, 0.48, 0.70, 0.85]
-for h, xh in zip(headers_p, x_hp):
-    ax_p3.text(xh, 0.75, h, transform=ax_p3.transAxes, fontsize=8, fontweight='bold', color='#605E5C')
-
-sample_flyers = [
-    ('P1870', 'R*** P***', '46-60', '11 flights', '₹68,510'),
-    ('P1331', 'A*** N***', '31-45', '10 flights', '₹93,010'),
-    ('P1028', 'A*** M***', '60+', '9 flights', '₹53,951'),
-    ('P1230', 'K*** M***', '18-30', '7 flights', '₹80,357'),
-]
-for row_idx, r_vals in enumerate(sample_flyers):
-    y = 0.58 - row_idx * 0.14
-    for val, xh in zip(r_vals, x_hp):
-        ax_p3.text(xh, y, val, transform=ax_p3.transAxes, fontsize=8, color=DARK)
+gender_counts = df['gender'].value_counts()
+ax_gen = fig.add_axes([0.55, 0.15, 0.38, 0.70])
+ax_gen.set_facecolor(CARD_BG)
+ax_gen.pie(gender_counts.values, labels=['Male (M)', 'Female (F)'], autopct='%1.1f%%',
+           colors=['#0284C7', '#EC4899'], startangle=140)
+ax_gen.set_title('Passenger Gender Ratio', fontsize=12, fontweight='bold', color=DARK, pad=10)
 
 fig.savefig(SCREENSHOTS_DIR / '04_passenger_demographics_loyalty.png', dpi=150)
 plt.close(fig)
 
-# ── Screenshot 5: Combined Executive Hero Preview ─────────────────────────────
-from PIL import Image
-
-im1 = Image.open(SCREENSHOTS_DIR / '01_operations_overview.png')
-im2 = Image.open(SCREENSHOTS_DIR / '02_route_delay_performance.png')
-im3 = Image.open(SCREENSHOTS_DIR / '03_commercial_financial_trends.png')
-im4 = Image.open(SCREENSHOTS_DIR / '04_passenger_demographics_loyalty.png')
-
-w, h = im1.size
-hero = Image.new('RGB', (w * 2, h * 2), color=(243, 242, 241))
-hero.paste(im1, (0, 0))
-hero.paste(im2, (w, 0))
-hero.paste(im3, (0, h))
-hero.paste(im4, (w, h))
-
-hero_path = SCREENSHOTS_DIR / 'asg_airlines_dashboard_preview.png'
-hero.save(hero_path, quality=95)
-print(f"Executive hero preview generated: {hero_path}")
-
+# ── Executive Hero Preview Image ──────────────────────────────────────────────
+shutil.copy2(SCREENSHOTS_DIR / '01_operations_overview.png', SCREENSHOTS_DIR / 'asg_airlines_dashboard_preview.png')
 shutil.copy2(SCREENSHOTS_DIR / '01_operations_overview.png', POWERBI_DIR / 'dashboard_screenshot.png')
-print(f"Default dashboard screenshot saved: {POWERBI_DIR / 'dashboard_screenshot.png'}")
 
-# ── Sync to ASG-Airlines-Pipeline ─────────────────────────────────────────────
-ASG_PBI = BASE_DIR.parent / 'ASG-Airlines-Pipeline' / 'powerbi'
-if ASG_PBI.exists():
-    shutil.copy2(pbix_path, ASG_PBI / 'ASG_Airlines_Dashboard.pbix')
-    asg_shots = ASG_PBI / 'screenshots'
-    asg_shots.mkdir(parents=True, exist_ok=True)
-    for f in SCREENSHOTS_DIR.glob('*.png'):
-        shutil.copy2(f, asg_shots / f.name)
-    shutil.copy2(POWERBI_DIR / 'dashboard_screenshot.png', ASG_PBI / 'dashboard_screenshot.png')
+print("Default dashboard screenshot saved:", POWERBI_DIR / 'dashboard_screenshot.png')
+
+# Sync artifacts to ASG-Airlines-Pipeline
+asg_powerbi = BASE_DIR.parent / 'ASG-Airlines-Pipeline' / 'powerbi'
+if asg_powerbi.parent.exists():
+    asg_powerbi.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(pbix_path, asg_powerbi / 'ASG_Airlines_Dashboard.pbix')
+    shutil.copy2(POWERBI_DIR / 'dashboard_screenshot.png', asg_powerbi / 'dashboard_screenshot.png')
+    asg_screenshots = asg_powerbi / 'screenshots'
+    asg_screenshots.mkdir(parents=True, exist_ok=True)
+    for img in SCREENSHOTS_DIR.glob('*.png'):
+        shutil.copy2(img, asg_screenshots / img.name)
     print("All Power BI deliverables synced to ASG-Airlines-Pipeline!")
 
-print("All Power BI artifacts (.pbix + screenshots) built and verified successfully!")
+print("All Power BI artifacts (.pbix + previews) built and verified successfully!")

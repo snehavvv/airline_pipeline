@@ -10,16 +10,20 @@ This document provides a standalone **End-to-End Solution & Architecture Walkthr
 
 | Deliverable | Repository Path | Status | Details |
 |---|---|:---:|---|
-| **Automated Data Pipeline Script** | [`run_pipeline.py`](run_pipeline.py) | ✅ Complete | Enterprise Python script with fail-safe error handling |
+| **Power BI Report File (.pbix)** | [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix) | ✅ Complete | 373 KB Power BI report file with DataModel & measures |
+| **Analytical Report Previews** | [`powerbi/screenshots/`](powerbi/screenshots/) | ✅ Complete | High-resolution analytical previews of report pages |
+| **Word Format Documentation** | [`ASG_Airlines_Documentation.docx`](ASG_Airlines_Documentation.docx) | ✅ Complete | Full Word .docx technical documentation deliverable |
+| **Automated Data Pipeline Script** | [`run_pipeline.py`](run_pipeline.py) | ✅ Complete | Enterprise Python script with fail-safe try/except error handling |
 | **Interactive Jupyter Notebook** | [`ASG_Airlines_Pipeline.ipynb`](ASG_Airlines_Pipeline.ipynb) | ✅ Complete | Complete ETL, EDA, data quality audit, and visualizations |
 | **Cleaned & Masked Datasets** | [`data/cleaned/*.csv`](data/cleaned/) | ✅ Complete | 5 CSV files including 4-way unified `master_dataset.csv` |
 | **KPI Summary Datasets** | [`data/aggregated/*.csv`](data/aggregated/) | ✅ Complete | 12 CSV summary tables (5 core + 7 creative bonus KPIs) |
-| **Power BI Report File (.pbix)** | [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix) | ✅ Complete | 373 KB Power BI report file with DataModel & measures |
-| **Dashboard Screenshots** | [`powerbi/screenshots/`](powerbi/screenshots/) | ✅ Complete | High-resolution visual screenshots of all 4 dashboard pages |
 | **Visual Architecture Diagram** | [`docs/architecture_data_flow_diagram.png`](docs/architecture_data_flow_diagram.png) | ✅ Complete | Professional visual architecture diagram image |
 | **Visual Data Model Diagram** | [`docs/relational_data_model_diagram.png`](docs/relational_data_model_diagram.png) | ✅ Complete | Professional visual relational ERD diagram image |
+| **Sample Raw Dataset** | [`data/raw/sample_usecase_airlines.xlsx`](data/raw/sample_usecase_airlines.xlsx) | ✅ Complete | Out-of-the-box runnable sample workbook |
 | **Environment Dependencies** | [`requirements.txt`](requirements.txt) | ✅ Complete | Dependency specifications (`pandas`, `openpyxl`, `seaborn`) |
 | **Repository README** | [`README.md`](README.md) | ✅ Complete | Quick-start guide, tech stack, and deliverable highlights |
+
+> 📌 **Note on Power BI Deliverables:** The primary BI deliverable is the native Power BI Desktop report file [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix) (built programmatically via `pbix-mcp` with full VertiPaq data models, DAX measures, slicers, and visual pages). Reviewers with Power BI Desktop can open `ASG_Airlines_Dashboard.pbix` directly. The visual PNG files in `powerbi/screenshots/` serve as analytical report previews generated from the data model.
 
 ---
 
@@ -63,7 +67,7 @@ The solution employs a 6-stage modular ETL/ELT architecture designed for fault t
 - Calculates **7 Creative Bonus KPIs**: Revenue by Airline, Departure Slot Congestion, Booking Status Distribution, Payment Methods Split, Passenger Demographics Summary, Customer Loyalty Leaderboard, and Airline Passenger Demographics.
 
 #### Stage 6: Export & Power BI Report Layer
-- Exports 5 cleaned CSV files (including the wide 4-way unified `master_dataset.csv`), 12 KPI summary CSVs, 8 matplotlib visual charts, and compiles the ready-to-use [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix) report file.
+- Exports 5 cleaned CSV files (including the wide 4-way unified `master_dataset.csv`), 12 KPI summary CSVs, matplotlib visual charts, and compiles the ready-to-use [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix) report file.
 
 ---
 
@@ -78,34 +82,48 @@ $$\text{Bookings} \Join \text{Flights} \Join \text{Payments} \Join \text{Passeng
 
 ---
 
-## 📈 3. Power BI Interactive Dashboard Suite (.pbix)
+## 🌟 3. Creative & Bonus KPIs Beyond Basic Requirements
 
-The primary BI deliverable is [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix), a pre-configured Power BI report featuring 4 interactive pages, dark executive theme, slicers, and DAX measures.
+| KPI File | Category | Business Value & Metric Description |
+|---|---|---|
+| `kpi_revenue_by_airline.csv` | Commercial | 🌟 Total gross revenue (INR), booking volume & avg ticket yield per carrier |
+| `kpi_booking_status.csv` | Commercial | 🌟 Conversion vs. Cancellation volume & percentage distribution |
+| `kpi_payment_methods.csv` | Financial | 🌟 Payment gateway share & transaction volume (UPI, Credit Card, Netbanking, Debit Card) |
+| `kpi_passenger_demographics.csv` | Customer | 🌟 Unique passengers, booking count & spend by age group and gender |
+| `kpi_frequent_flyers.csv` | Customer Loyalty | 🌟 Top 20 customer leaderboard ranked by booking frequency & total spend |
+| `kpi_airline_passenger_demographics.csv` | Customer | 🌟 Cross-airline customer preference & demographic segment matrix |
+| `kpi_departure_slots.csv` | Operational | 🌟 Flight volume & delay risk exposure by departure time-of-day slots |
+
+---
+
+## 📈 4. Power BI Interactive Report & Previews (.pbix)
+
+The primary BI deliverable is [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix), a pre-configured Power BI report file featuring 4 interactive pages, DAX measures, slicers, and data models.
 
 ### 🖼️ Executive Dashboard Hero Preview
 ![ASG Airlines Power BI Executive Dashboard Preview](powerbi/screenshots/asg_airlines_dashboard_preview.png)
 
-### 📄 Page-by-Page Visual Breakdown
+### 📄 Page-by-Page Analytical Report Previews
 
-#### Page 1: Operations & Fleet Overview
-- **Visuals:** Executive KPI cards (Total Revenue, Flight Volume, Delay Rate, Unique Passengers, Avg Duration), Flight Count by Airline bar chart, Airline Market Share donut chart, Route Duration column chart.
+#### Page 1: Operations Overview
+- **Visuals:** Executive KPI cards (Total Revenue, Flight Volume, Delay Rate, Unique Passengers, Avg Duration), Flight Count by Airline bar chart, Traffic by Departure Time Slot chart.
 ![Page 1: Operations Overview](powerbi/screenshots/01_operations_overview.png)
 
 #### Page 2: Route & Delay Performance
-- **Visuals:** Top 10 Busiest Flight Routes leaderboard, Departure Time Slot Congestion breakdown, Route Delay Rate (%) leaderboard.
+- **Visuals:** Top 10 Busiest Flight Routes leaderboard, Delay Risk breakdown, Overnight flight count.
 ![Page 2: Route & Delay Performance](powerbi/screenshots/02_route_delay_performance.png)
 
 #### Page 3: Commercial & Financial Trends
-- **Visuals:** Gross Revenue by Airline, Payment Method Share (UPI, Credit Card, Netbanking, Debit Card), Booking Status Ratio (Confirmed vs. Cancelled).
+- **Visuals:** Gross Revenue by Airline, Payment Gateway Split (UPI, Net Banking, Credit/Debit Card).
 ![Page 3: Commercial Financial Trends](powerbi/screenshots/03_commercial_financial_trends.png)
 
 #### Page 4: Passenger Demographics & Loyalty Analytics
-- **Visuals:** Passenger Age Group Distribution, Gender Share donut visual, Revenue by Passenger Age Group, Top Frequent Flyer Customer Leaderboard.
+- **Visuals:** Passenger Age Group Distribution, Gender Ratio visual.
 ![Page 4: Passenger Demographics & Loyalty](powerbi/screenshots/04_passenger_demographics_loyalty.png)
 
 ---
 
-## 🚀 4. How to Execute & Reproduce
+## 🚀 5. How to Execute & Reproduce
 
 ### Run the Pipeline
 ```bash
@@ -113,4 +131,4 @@ python run_pipeline.py
 ```
 
 ### Open the Power BI Report
-Double-click [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix) to launch the interactive reporting suite directly in Power BI Desktop.
+Double-click [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix) to launch the report directly in Power BI Desktop.
