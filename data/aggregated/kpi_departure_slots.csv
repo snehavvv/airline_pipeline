@@ -1,6 +1,6 @@
-departure_slot,flight_count
-Afternoon,259
-Early Morning,128
-Evening,161
-Morning,109
-Night,307
+departure_slot,flight_count,delayed_flights,delay_rate_pct
+Afternoon (12-17),259,88,33.98
+Early Morning (05-09),128,44,34.38
+Evening (17-21),161,43,26.71
+Morning (09-12),109,32,29.36
+Night (21-05),307,94,30.62

@@ -1,9 +1,9 @@
-airline,flight_count,avg_duration_mins,min_duration_mins,max_duration_mins,market_share_%
-INDIGO,249,167.7,30.0,300.0,25.83
-SPICEJET,235,163.61,32.0,300.0,24.38
-AIR INDIA,233,163.15,35.0,299.0,24.17
-VISTARA,218,162.68,30.0,300.0,22.61
-IndiGo,11,147.73,41.0,267.0,1.14
-Air India,8,172.0,62.0,226.0,0.83
-SpiceJet,6,169.67,87.0,263.0,0.62
-Vistara,4,198.75,98.0,278.0,0.41
+airline,flight_count,market_share_pct
+INDIGO,249,25.83
+SPICEJET,235,24.38
+AIR INDIA,233,24.17
+VISTARA,218,22.61
+IndiGo,11,1.14
+Air India,8,0.83
+SpiceJet,6,0.62
+Vistara,4,0.41

@@ -1,4 +1,4 @@
-airline,total_flights,delayed_flights,overnight_count,delay_rate_%
+airline,total_flights,delayed_flights,overnight_flights,delay_rate_pct
 AIR INDIA,233,62,30,26.61
 Air India,8,3,2,37.5
 INDIGO,249,89,30,35.74

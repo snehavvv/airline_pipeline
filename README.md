@@ -1,6 +1,6 @@
 # ✈️ ASG Airlines — End-to-End Data Engineering Pipeline & Power BI Dashboard
 
-An end-to-end local data engineering pipeline and interactive Power BI reporting suite built for ASG Airlines to ingest, clean, standardize, transform, and report on flight operations, bookings, passenger demographics, and payments — **fully utilizing all 4 core operational tables**.
+An enterprise-grade, fail-safe local data engineering pipeline and interactive Power BI reporting suite built for ASG Airlines to ingest, clean, standardize, transform, govern, and report on flight operations, bookings, passenger demographics, and payments — **fully utilizing all 4 core operational tables**.
 
 ---
 
@@ -22,16 +22,56 @@ The repository includes a ready-to-use **Power BI Report File (`.pbix`)** with 4
 
 ---
 
+## 🏗️ Architecture & Data Flow Diagram
+
+### 🖼️ Visual Architecture Diagram
+![ASG Airlines Data Engineering Pipeline Architecture & Data Flow](docs/architecture_data_flow_diagram.png)
+
+### 🖼️ Relational Data Model & ERD Schema
+![ASG Airlines Relational Data Model & ERD Schema](docs/relational_data_model_diagram.png)
+
+---
+
+## 🌟 Creative & Bonus KPIs Beyond Basic Requirements
+
+In addition to all basic required KPIs (Route Traffic, Airline Duration, Route Duration, Airline Distribution, Delay Summary), the pipeline explicitly calculates **7 Creative Bonus KPIs** to unlock deeper commercial, financial, customer, and operational insights:
+
+| KPI File | Category | Business Value & Metric Description |
+|---|---|---|
+| `kpi_revenue_by_airline.csv` | Commercial | 🌟 Total gross revenue (INR), booking volume & avg ticket yield per carrier |
+| `kpi_booking_status.csv` | Commercial | 🌟 Conversion vs. Cancellation volume & percentage distribution |
+| `kpi_payment_methods.csv` | Financial | 🌟 Payment gateway share & transaction volume (UPI, Credit Card, Netbanking, Debit Card) |
+| `kpi_passenger_demographics.csv` | Customer | 🌟 Unique passengers, booking count & spend by age group and gender |
+| `kpi_frequent_flyers.csv` | Customer Loyalty | 🌟 Top 20 customer leaderboard ranked by booking frequency & total spend |
+| `kpi_airline_passenger_demographics.csv` | Customer | 🌟 Cross-airline customer preference & demographic segment matrix |
+| `kpi_departure_slots.csv` | Operational | 🌟 Flight volume & delay risk exposure by departure time-of-day slots |
+
+---
+
+## 🛡️ Enterprise Error Handling & Data Quality
+
+`run_pipeline.py` is engineered with enterprise fail-safe exception handling:
+- **Dynamic Raw File Discovery:** Automatically detects `data/raw/UseCase - Airlines.xlsx` or falls back to the committed sample dataset [`data/raw/sample_usecase_airlines.xlsx`](data/raw/sample_usecase_airlines.xlsx).
+- **Try/Except Exception Guards:** Prevents pipeline crashes by catching IO errors, corrupted sheets, and unexpected missing columns with explicit logging diagnostic tracebacks.
+- **Salted SHA-256 PII Protection:** Cryptographically hashes Aadhaar, Passport, Email, and Phone numbers with a salt (`ASGAirlines2026`) ensuring 100% compliance with data privacy standards.
+
+---
+
 ## 📁 Repository Structure
 
 ```
 airline_pipeline/
 ├── ASG_Airlines_Pipeline.ipynb     # Interactive Jupyter Notebook (Full ETL, EDA & Analytics)
-├── ASG_Airlines_Documentation.md    # Detailed technical documentation & case study
-├── run_pipeline.py                 # Standalone automated ETL pipeline script
+├── ASG_Airlines_Documentation.md    # Comprehensive technical documentation & case study
+├── run_pipeline.py                 # Standalone fail-safe ETL pipeline script
 ├── requirements.txt                # Python environment dependencies
-├── .gitignore                      # Ignore raw sensitive data & build artifacts
+├── .gitignore                      # Ignore raw sensitive production data & build artifacts
 ├── README.md                       # Project overview and run guide
+│
+├── docs/
+│   ├── architecture_data_flow_diagram.png # Visual Architecture & Data Flow PNG
+│   ├── relational_data_model_diagram.png # Visual Relational ERD Schema PNG
+│   └── generate_diagrams.py        # Python script to regenerate visual diagrams
 │
 ├── powerbi/
 │   ├── ASG_Airlines_Dashboard.pbix # ⭐ Built Power BI Report File (.pbix)
@@ -39,21 +79,19 @@ airline_pipeline/
 │   ├── POWERBI_SETUP_GUIDE.md      # Step-by-step Power BI setup & DAX guide
 │   ├── check_powerbi_files.py      # Verification script for Power BI data sources
 │   ├── generate_dashboard_and_screenshots.py # Script to rebuild .pbix & render screenshots
-│   └── screenshots/                # Page-by-page high-resolution dashboard screenshots
-│       ├── 01_operations_overview.png
-│       ├── 02_route_delay_performance.png
-│       ├── 03_commercial_financial_trends.png
-│       ├── 04_passenger_demographics_loyalty.png
-│       └── asg_airlines_dashboard_preview.png
+│   └── screenshots/                # High-resolution visual dashboard screenshots
 │
 └── data/
+    ├── raw/
+    │   └── sample_usecase_airlines.xlsx # ⭐ Out-of-the-box runnable sample raw dataset
+    │
     ├── cleaned/                    # Cleaned & PII-masked analytical datasets
     │   ├── master_dataset.csv      # 4-way unified fact table (Bookings+Flights+Payments+Passengers)
     │   ├── cleaned_flights.csv     # Cleaned flights (overnight-aware durations)
     │   ├── cleaned_bookings_masked.csv
     │   ├── cleaned_passengers_masked.csv
     │   ├── cleaned_payments.csv
-    │   └── *.png                   # 8 analytical charts (operations + passenger demographics)
+    │   └── *.png                   # Analytical charts (operations + passenger demographics)
     │
     └── aggregated/                 # 12 pre-aggregated KPI summary tables
         ├── kpi_route_traffic.csv
@@ -61,13 +99,13 @@ airline_pipeline/
         ├── kpi_avg_duration_by_route.csv
         ├── kpi_airline_distribution.csv
         ├── kpi_delay_summary.csv
-        ├── kpi_revenue_by_airline.csv
-        ├── kpi_departure_slots.csv
-        ├── kpi_booking_status.csv
-        ├── kpi_payment_methods.csv
-        ├── kpi_passenger_demographics.csv           # Gender & Age group demographics
-        ├── kpi_frequent_flyers.csv                  # Customer loyalty & top travelers
-        └── kpi_airline_passenger_demographics.csv   # Cross-airline passenger profiles
+        ├── kpi_revenue_by_airline.csv               # (Bonus) Airline revenue yield
+        ├── kpi_departure_slots.csv                  # (Bonus) Departure slot congestion
+        ├── kpi_booking_status.csv                   # (Bonus) Cancellation vs confirmed ratio
+        ├── kpi_payment_methods.csv                  # (Bonus) Payment gateway distribution
+        ├── kpi_passenger_demographics.csv           # (Bonus) Gender & Age group demographics
+        ├── kpi_frequent_flyers.csv                  # (Bonus) Customer loyalty leaderboard
+        └── kpi_airline_passenger_demographics.csv   # (Bonus) Cross-airline passenger profiles
 ```
 
 ---
@@ -92,43 +130,18 @@ pip install -r requirements.txt
 ### Option 1: Open the Power BI Dashboard Directly
 Double-click [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix) to open the report directly in Power BI Desktop with all 4 dashboard pages, interactive slicers, and data models pre-configured.
 
-### Option 2: Run the Automated Data Pipeline
+### Option 2: Run the Automated Fail-Safe Pipeline (Out-of-the-Box)
 ```bash
 python run_pipeline.py
 ```
-This processes raw datasets, cleans anomalies, handles overnight flights, applies PII masking, and exports all cleaned tables, 12 KPI CSVs, and visualization charts.
+*Note: If the full `data/raw/UseCase - Airlines.xlsx` file is present, it will process the production data; otherwise, it seamlessly processes `data/raw/sample_usecase_airlines.xlsx`.*
 
 ### Option 3: Regenerate Power BI (.pbix) & Screenshots Programmatically
 ```bash
 python powerbi/generate_dashboard_and_screenshots.py
 ```
-This script rebuilds the `.pbix` data model, visual pages, DAX measures, and renders fresh high-resolution PNG dashboard screenshots.
 
 ### Option 4: Explore via Jupyter Notebook
 ```bash
 jupyter notebook ASG_Airlines_Pipeline.ipynb
 ```
-
----
-
-## 📊 Key Business Insights & KPIs
-
-1. **All 4 Core Tables Utilized**: 
-   - `flights`: Durations, routes, delay heuristics, time slots
-   - `bookings`: Booking status, seat assignments, base fact entity
-   - `payments`: Transaction revenue, payment method preferences
-   - `passengers`: Age group segmentation, gender distribution, frequent flyer loyalty
-2. **Unified Master Dataset**: A single denormalized 4-way joined table (`master_dataset.csv`) providing end-to-end lineage from customer to booking to flight to payment.
-3. **Overnight Flight Logic**: Correctly handles cross-day flights where arrival date is the next day.
-4. **Airline Imputation**: Missing or corrupted airline names restored using flight number prefixes (`AI*` → Air India, `SJ*` → SpiceJet, `6F*` → IndiGo, `UK*` → Vistara, `G8*` → Go First).
-5. **Data Privacy & Governance**: All sensitive PII fields (Aadhaar, Passport, Phone, Email) are cryptographically hashed using salted SHA-256, and names are pseudonymized.
-
----
-
-## 📈 Power BI Report Features & DAX Measures
-
-- **Total Revenue (INR):** `SUM(master_dataset[amount])`
-- **Total Flights:** `COUNTROWS(cleaned_flights)`
-- **Delay Rate (%):** `DIVIDE(CALCULATE(COUNTROWS(cleaned_flights), cleaned_flights[is_delayed] = 1), COUNTROWS(cleaned_flights), 0)`
-- **Unique Passengers:** `DISTINCTCOUNT(cleaned_passengers_masked[passenger_id])`
-- **Average Flight Duration:** `AVERAGE(cleaned_flights[duration_mins])`
