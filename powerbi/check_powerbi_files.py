@@ -34,8 +34,11 @@ REQUIRED_KPIS = [
 ]
 
 REQUIRED_PBI = [
-    'ASG_Airlines_Dashboard.pbix',
     'dashboard_preview.png'
+]
+
+OPTIONAL_GENERATED_PBI = [
+    'ASG_Airlines_Dashboard.pbix'
 ]
 
 REQUIRED_PREVIEWS = [
@@ -75,6 +78,15 @@ def check():
         size_kb = (p.stat().st_size // 1024) if exists else 0
         print(f"  [{'OK' if exists else 'MISSING'}] {f} ({size_kb} KB)")
         if not exists: all_ok = False
+        
+    for f in OPTIONAL_GENERATED_PBI:
+        p = POWERBI / f
+        exists = p.exists()
+        size_kb = (p.stat().st_size // 1024) if exists else 0
+        if exists:
+            print(f"  [OK - LOCAL] {f} ({size_kb} KB)")
+        else:
+            print(f"  [OPTIONAL - NOT BUILT] {f} (Excluded from git; run generate_dashboard_and_screenshots.py to build locally)")
 
     print("\n[4] Checking Analytical Preview Images (powerbi/previews/):")
     for f in REQUIRED_PREVIEWS:
