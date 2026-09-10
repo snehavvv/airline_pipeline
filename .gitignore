@@ -26,3 +26,8 @@ data/raw/
 *.xls
 *.tmp
 *.log
+
+# Deliverables & Binary Reports (generated on-demand)
+*.docx
+*.pbix
+

@@ -10,21 +10,22 @@ An enterprise-grade, fail-safe local data engineering pipeline and interactive P
 
 ## 📊 Power BI Dashboard & Analytical Report Suite
 
-The repository includes a ready-to-use **Power BI Report File (`.pbix`)** with 4 interactive dashboard pages, real-time KPI metrics, DAX measures, dark/glassmorphic executive styling, and interactive visual filtering.
+The repository includes a comprehensive Power BI reporting suite with 4 interactive dashboard views, real-time KPI metrics, DAX measures, dark/glassmorphic executive styling, and interactive analytical visual previews.
 
 ### 🖼️ Executive Analytical Report Hero Preview
 ![ASG Airlines Power BI Executive Report Preview](powerbi/previews/asg_airlines_dashboard_preview.png)
 
 ### 📁 Primary Power BI Deliverables
-- **Power BI Report File:** [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix) *(373 KB complete Power BI report model with data tables, measures, layout, and visual pages)*
 - **Executive Report Preview:** [`powerbi/dashboard_preview.png`](powerbi/dashboard_preview.png)
 - **High-Resolution Page Preview Renders:** [`powerbi/previews/`](powerbi/previews/)
   - `01_operations_overview.png` — Executive KPIs, flight volume, airline market share, departure time slot traffic
   - `02_route_delay_performance.png` — Route leaderboard, delay risk rates, overnight flight analysis
   - `03_commercial_financial_trends.png` — Revenue per airline, payment gateway splits, booking status distribution
   - `04_passenger_demographics_loyalty.png` — Passenger age/gender distribution, customer segmentation
+- **Power BI Setup & DAX Guide:** [`powerbi/POWERBI_SETUP_GUIDE.md`](powerbi/POWERBI_SETUP_GUIDE.md) *(Step-by-step setup guide with DAX formulas & data model relationships)*
+- **Programmatic Generator:** [`powerbi/generate_dashboard_and_screenshots.py`](powerbi/generate_dashboard_and_screenshots.py) *(Script to generate `.pbix` and analytical preview renders)*
 
-> 📌 **Note on Power BI Deliverables:** The primary BI deliverable is the native Power BI Desktop report file [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix) (built programmatically via `pbix-mcp` with full VertiPaq data models, DAX measures, slicers, and visual pages). Reviewers with Power BI Desktop can open `ASG_Airlines_Dashboard.pbix` directly. The visual PNG files in `powerbi/previews/` serve as analytical report previews generated from the data model.
+> 📌 **Note on Power BI & Documentation Files:** Binary deliverables (`.pbix` and `.docx`) are excluded from repository version control to keep the repository clean, lightweight, and compliant with git best practices. High-resolution report previews are available in [`powerbi/previews/`](powerbi/previews/) and full technical documentation is provided in [`Solution_Walkthrough.md`](Solution_Walkthrough.md). You can locally build the `.pbix` via `python powerbi/generate_dashboard_and_screenshots.py` and `.docx` via `python docs/create_docx_documentation.py`.
 
 ---
 
@@ -68,21 +69,19 @@ In addition to all basic required KPIs (Route Traffic, Airline Duration, Route D
 ```
 airline_pipeline/
 ├── ASG_Airlines_Pipeline.ipynb     # Interactive Jupyter Notebook (Full ETL, EDA & Analytics)
-├── ASG_Airlines_Documentation.docx # Comprehensive technical documentation (Word format)
 ├── Solution_Walkthrough.md         # Narrative solution & architecture walkthrough
 ├── run_pipeline.py                 # Standalone fail-safe ETL pipeline script
 ├── requirements.txt                # Python environment dependencies
-├── .gitignore                      # Ignore raw sensitive production data & build artifacts
+├── .gitignore                      # Ignore raw sensitive data & binary deliverables (.pbix, .docx)
 ├── README.md                       # Project overview and run guide
 │
 ├── docs/
 │   ├── architecture_data_flow_diagram.png # Visual Architecture & Data Flow PNG
 │   ├── relational_data_model_diagram.png # Visual Relational ERD Schema PNG
-│   ├── create_docx_documentation.py # Word document generator script
+│   ├── create_docx_documentation.py # Word document generator script (creates .docx)
 │   └── generate_diagrams.py        # Visual diagram generator script
 │
 ├── powerbi/
-│   ├── ASG_Airlines_Dashboard.pbix # ⭐ Built Power BI Report File (.pbix)
 │   ├── dashboard_preview.png       # Executive Analytical Report Preview
 │   ├── POWERBI_SETUP_GUIDE.md      # Step-by-step Power BI setup & DAX guide
 │   ├── check_powerbi_files.py      # Verification script for Power BI data sources
@@ -140,21 +139,26 @@ pip install -r requirements.txt
 
 ## 🚀 How to Run
 
-### Option 1: Open the Power BI Dashboard Directly
-Double-click [`powerbi/ASG_Airlines_Dashboard.pbix`](powerbi/ASG_Airlines_Dashboard.pbix) to open the report directly in Power BI Desktop with all 4 dashboard pages, interactive slicers, and data models pre-configured.
-
-### Option 2: Run the Automated Fail-Safe Pipeline (Out-of-the-Box)
+### Option 1: Run the Automated Fail-Safe Pipeline (Out-of-the-Box)
 ```bash
 python run_pipeline.py
 ```
 *Note: If the full `data/raw/UseCase - Airlines.xlsx` file is present, it will process the production data; otherwise, it seamlessly processes `data/raw/sample_usecase_airlines.xlsx`.*
 
-### Option 3: Regenerate Power BI (.pbix) & Previews Programmatically
+### Option 2: Explore via Jupyter Notebook
+```bash
+jupyter notebook ASG_Airlines_Pipeline.ipynb
+```
+
+### Option 3: View or Build Power BI Dashboard
+- High-resolution analytical visuals can be viewed in [`powerbi/previews/`](powerbi/previews/).
+- To build the `.pbix` report programmatically:
 ```bash
 python powerbi/generate_dashboard_and_screenshots.py
 ```
+- Or configure manually in Power BI Desktop following [`powerbi/POWERBI_SETUP_GUIDE.md`](powerbi/POWERBI_SETUP_GUIDE.md).
 
-### Option 4: Explore via Jupyter Notebook
+### Option 4: Generate Word (.docx) Documentation
 ```bash
-jupyter notebook ASG_Airlines_Pipeline.ipynb
+python docs/create_docx_documentation.py
 ```
